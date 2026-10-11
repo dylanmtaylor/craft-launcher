@@ -407,6 +407,7 @@ impl LauncherUi {
             })
             .collect();
         for (id, version) in to_update {
+            log::info!("auto-update: queuing update for {id} to {version}");
             self.auto_update_attempted.insert((id.clone(), version));
             self.send(Command::Install { app: id });
         }
@@ -417,6 +418,7 @@ impl LauncherUi {
             let id = artcraft_launcher_core::catalog::LAUNCHER_ID.to_string();
             let v = r.version_label();
             if !self.auto_update_attempted.contains(&(id.clone(), v.clone())) {
+                log::info!("auto-update: queuing launcher self-update to {v}");
                 self.auto_update_attempted.insert((id, v));
                 self.send(Command::UpdateLauncher);
             }

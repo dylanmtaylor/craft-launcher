@@ -309,6 +309,7 @@ impl NativeBackend {
 
     fn start_job(&self, app_id: &str, uninstall: bool) {
         let Some(app) = CraftApp::by_id(app_id) else { return };
+        log::info!("{}: starting {} job", app.name, if uninstall { "uninstall" } else { "install/update" });
         let stop = Arc::new(Stop::default());
         let restarting = {
             let mut jobs = self.shared.jobs.lock().unwrap_or_else(PoisonError::into_inner);
