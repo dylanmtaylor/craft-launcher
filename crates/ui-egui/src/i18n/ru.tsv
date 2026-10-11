@@ -75,6 +75,8 @@
 	ArtCraft Launcher {version} is available.	Доступен ArtCraft Launcher {version}.
 	Dismiss	Закрыть
 	Update and restart	Обновить и перезапустить
+	A new version is available. Would you like to relaunch with the updated version?	Доступна новая версия. Перезапустить с обновленной версией?
+	Later	Позже
 	What's new	Что нового
 	No notes were published with this release.	Заметки к этому релизу не публиковались.
 	Released {date}	Релиз {date}

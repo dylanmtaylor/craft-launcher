@@ -59,6 +59,8 @@
 	ArtCraft Launcher {version} is available.	ArtCraft Launcher {version} 已可更新。
 	Dismiss	忽略
 	Update and restart	更新并重启
+	A new version is available. Would you like to relaunch with the updated version?	有新版本可用。是否使用更新后的版本重新启动？
+	Later	稍后
 	What's new	更新内容
 	No notes were published with this release.	此版本未提供更新说明。
 	Released {date}	发布于 {date}

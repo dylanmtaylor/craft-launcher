@@ -659,6 +659,24 @@ fn the_launcher_updates_itself_and_quits_to_restart() {
 }
 
 #[test]
+fn launcher_update_prompts_to_relaunch_with_updated_version() {
+    let mut ev = events();
+    ev.push(Event::LauncherUpdate(release("artcraft-launcher", "0.2.0", NOW)));
+    let (mut h, _) = harness_with(ev, ViewMode::Grid, egui::Theme::Dark, true, 1.0);
+    h.run_steps(6);
+    // Dialog pops up on launch with the update prompt
+    h.get_by_label_contains("ArtCraft Launcher 0.2.0 is available");
+    h.get_by_label("A new version is available. Would you like to relaunch with the updated version?");
+    h.get_by_label("What's new");
+    // Clicking "Later" dismisses the modal dialog
+    h.get_by_label("Later").click();
+    h.run_steps(3);
+    assert!(h.query_by_label("A new version is available. Would you like to relaunch with the updated version?").is_none());
+    // Toolbar update banner is now visible with Update and restart
+    h.get_by_label("Update and restart");
+}
+
+#[test]
 fn the_current_desktop_setting_is_only_offered_where_the_os_has_desktops() {
     // NoHost has no desktops (Windows, Linux, web): no setting.
     let (mut h, _) = harness(ViewMode::Grid, egui::Theme::Dark, true);

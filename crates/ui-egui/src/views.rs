@@ -119,7 +119,9 @@ impl LauncherUi {
 
     pub(crate) fn toolbar(&mut self, ui: &mut Ui) {
         let t = Tokens::get(ui.ctx());
-        if let Some(r) = self.launcher_update.clone() {
+        if self.dialog.is_none()
+            && let Some(r) = self.launcher_update.clone()
+        {
             egui::Frame::new()
                 .fill(tint(t.accent, if t.dark { 0.10 } else { 0.07 }))
                 .stroke(Stroke::new(1.0, tint(t.accent, 0.6)))
@@ -891,7 +893,7 @@ fn version_line(e: &AppEntry, status: &AppStatus) -> String {
 }
 
 /// The launcher's own download for this platform.
-fn launcher_download(r: &artcraft_launcher_core::Release, p: artcraft_launcher_core::Platform) -> Option<String> {
+pub(crate) fn launcher_download(r: &artcraft_launcher_core::Release, p: artcraft_launcher_core::Platform) -> Option<String> {
     use artcraft_launcher_core::PackageKind;
     let kinds: &[PackageKind] = match p.os {
         artcraft_launcher_core::Os::Linux => &[PackageKind::AppImage, PackageKind::Deb],

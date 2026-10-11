@@ -24,6 +24,7 @@ impl LauncherUi {
             Dialog::Notes(id) => modal.show(ctx, |ui| close = self.notes_dialog(ui, id)),
             Dialog::ConfirmUninstall(id) => modal.show(ctx, |ui| close = self.uninstall_dialog(ui, id)),
             Dialog::Settings => modal.show(ctx, |ui| close = self.settings_dialog(ui, host)),
+            Dialog::LauncherUpdate(r) => modal.show(ctx, |ui| close = self.launcher_update_dialog(ui, r)),
         };
         if close || response.should_close() {
             self.dialog = None;
@@ -97,6 +98,40 @@ impl LauncherUi {
             widgets::hud_link(ui, tl!("Open on GitHub"), &release.html_url);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 close = widgets::button(ui, tl!("Close"), Kind::Secondary, 90.0).clicked();
+            });
+        });
+        close
+    }
+
+    fn launcher_update_dialog(&mut self, ui: &mut egui::Ui, r: &artcraft_launcher_core::Release) -> bool {
+        let t = Tokens::get(ui.ctx());
+        ui.set_width(480.0f32.min(ui.ctx().content_rect().width() - 80.0));
+        let title = fmt(tl!("ArtCraft Launcher {version} is available."), &[("version", &r.version_label())]);
+        Self::title(ui, Some(crate::icons::artcraft_mark()), &title, "");
+        ui.label(RichText::new(tl!("A new version is available. Would you like to relaunch with the updated version?")).color(t.muted));
+        ui.add_space(14.0);
+        let mut close = false;
+        ui.horizontal(|ui| {
+            widgets::hud_link(ui, tl!("What's new"), &r.html_url);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if self.caps.self_update {
+                    if widgets::button(ui, tl!("Update and restart"), Kind::Primary, 0.0)
+                        .on_hover_text(tl!("Downloads the new version, replaces this one and opens it again"))
+                        .clicked()
+                    {
+                        self.send(Command::UpdateLauncher);
+                        close = true;
+                    }
+                } else {
+                    let url = self.platform.and_then(|p| crate::views::launcher_download(r, p)).unwrap_or_else(|| r.html_url.clone());
+                    if widgets::button(ui, tl!("Download"), Kind::Primary, 0.0).clicked() {
+                        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+                        close = true;
+                    }
+                }
+                if widgets::button(ui, tl!("Later"), Kind::Secondary, 80.0).clicked() {
+                    close = true;
+                }
             });
         });
         close

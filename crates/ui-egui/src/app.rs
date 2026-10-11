@@ -67,6 +67,7 @@ pub(crate) enum Dialog {
     Notes(String),
     ConfirmUninstall(String),
     Settings,
+    LauncherUpdate(artcraft_launcher_core::Release),
 }
 
 pub struct LauncherUi {
@@ -272,6 +273,9 @@ impl LauncherUi {
             Event::Progress { app, phase } => {
                 if app == artcraft_launcher_core::catalog::LAUNCHER_ID {
                     self.launcher_job = Some(phase);
+                    if matches!(self.dialog, Some(Dialog::LauncherUpdate(_))) {
+                        self.dialog = None;
+                    }
                 } else if let Some(e) = self.entry_mut(&app) {
                     e.job = Some(phase);
                 }
@@ -327,7 +331,12 @@ impl LauncherUi {
             }
             Event::LauncherUpdate(r) => {
                 let fresh = self.launcher_update.as_ref().is_none_or(|cur| cur.version != r.version);
-                self.launcher_update = Some(r);
+                self.launcher_update = Some(r.clone());
+                // Ask once per new version, unless automatic updates will install it anyway.
+                let automatic = self.settings.auto_update && self.caps.self_update;
+                if fresh && !automatic && self.dialog.is_none() && self.launcher_job.is_none() {
+                    self.dialog = Some(Dialog::LauncherUpdate(r));
+                }
                 fresh
             }
             Event::CheckStarted => {
