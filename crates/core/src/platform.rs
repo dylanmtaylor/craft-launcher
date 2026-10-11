@@ -300,4 +300,53 @@ mod tests {
             Some("photocraft-0.5.0-linux-riscv64.deb")
         );
     }
+
+    #[test]
+    fn strictly_matches_architecture_for_all_linux_package_formats() {
+        let multi_arch_release = release(&[
+            "photocraft-0.5.0-linux-aarch64.AppImage",
+            "photocraft-0.5.0-linux-x86_64.AppImage",
+            "photocraft-0.5.0-linux-aarch64.deb",
+            "photocraft-0.5.0-linux-x86_64.deb",
+            "photocraft-0.5.0-linux-aarch64.rpm",
+            "photocraft-0.5.0-linux-x86_64.rpm",
+            "photocraft-0.5.0-linux-aarch64.flatpak",
+            "photocraft-0.5.0-linux-x86_64.flatpak",
+            "photocraft-0.5.0-linux-aarch64.tar.gz",
+            "photocraft-0.5.0-linux-x86_64.tar.gz",
+        ]);
+
+        let p_x64 = Platform { os: Os::Linux, arch: Arch::X64 };
+        let p_arm64 = Platform { os: Os::Linux, arch: Arch::Arm64 };
+
+        for kind in [PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz] {
+            let pick_x64 = pick_asset(&multi_arch_release, &["photocraft"], p_x64, &[kind]).map(|(a, _)| a.name.clone());
+            assert!(
+                pick_x64.as_deref().unwrap().contains("linux-x86_64"),
+                "Expected x86_64 asset for {kind:?}, got {pick_x64:?}"
+            );
+
+            let pick_arm64 = pick_asset(&multi_arch_release, &["photocraft"], p_arm64, &[kind]).map(|(a, _)| a.name.clone());
+            assert!(
+                pick_arm64.as_deref().unwrap().contains("linux-aarch64"),
+                "Expected aarch64 asset for {kind:?}, got {pick_arm64:?}"
+            );
+        }
+
+        // On x86_64 Linux, an aarch64-only asset must NEVER match or fall back
+        let arm_only_release = release(&[
+            "photocraft-0.5.0-linux-aarch64.AppImage",
+            "photocraft-0.5.0-linux-aarch64.deb",
+            "photocraft-0.5.0-linux-aarch64.rpm",
+            "photocraft-0.5.0-linux-aarch64.flatpak",
+            "photocraft-0.5.0-linux-aarch64.tar.gz",
+        ]);
+        for kind in [PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz] {
+            assert_eq!(
+                pick_asset(&arm_only_release, &["photocraft"], p_x64, &[kind]),
+                None,
+                "x86_64 must never match an aarch64 asset for {kind:?}"
+            );
+        }
+    }
 }
