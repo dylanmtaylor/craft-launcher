@@ -19,9 +19,17 @@ concurrency:
 
 jobs:
   release:
-    uses: storytold/craft-common-actions/.github/workflows/release.yml@main
+    uses: storytold/craft-common-actions/.github/workflows/release.yml@27a978f0ac7672681700ceacc9c8e9930d367e4d # v1.0.0
     with:
       app-name: craft-launcher
       app-title: ArtCraft Launcher
       version: ${{ inputs.version }}
-    secrets: inherit
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}

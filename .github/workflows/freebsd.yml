@@ -25,4 +25,4 @@ permissions:
 
 jobs:
   freebsd:
-    uses: storytold/craft-common-actions/.github/workflows/freebsd.yml@main
+    uses: storytold/craft-common-actions/.github/workflows/freebsd.yml@27a978f0ac7672681700ceacc9c8e9930d367e4d # v1.0.0
