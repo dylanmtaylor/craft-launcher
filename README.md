@@ -145,7 +145,7 @@ Download the build for your computer from the [latest release](https://github.co
 | `artcraft-launcher-<ver>-linux-{x86_64,aarch64}.flatpak` | Flatpak bundle: `flatpak install --user artcraft-launcher-…flatpak`. Inside the sandbox the launcher can download apps but has limited power to install them on the host; prefer the AppImage, .deb or .rpm |
 | `artcraft-launcher-<ver>-linux-{x86_64,aarch64}.tar.gz` | Plain tree (`bin/`, `share/`) for everyone else and for scripts |
 
-RISC-V (riscv64): `artcraft-launcher-<ver>-linux-riscv64.tar.gz` only, built against Ubuntu 26.04 (needs glibc 2.39+).
+RISC-V (riscv64): `artcraft-launcher-<ver>-linux-riscv64.{deb,rpm,tar.gz}`, built against Ubuntu 26.04 (needs glibc 2.39+).
 
 The tray icon uses the StatusNotifierItem standard: KDE, Xfce, Cinnamon and most other desktops show it; on GNOME install the AppIndicator extension.
 

@@ -339,13 +339,14 @@ jobs:
     name: Linux riscv64
     needs: version
     # Cross-compiled on x86_64 (no hosted RISC-V runners) against the runner's own Ubuntu release
-    # from ports.ubuntu.com, so the binaries need that release's glibc. tar.gz only;
+    # from ports.ubuntu.com, so the binaries need that release's glibc. deb, rpm, and tar.gz;
     # artcraft-launcher --version is smoke-tested under QEMU. Follows PhotoCraft's linux-riscv64 job.
     runs-on: ubuntu-26.04
     # No `environment: release`: this job reads no secrets, so a branch dry run can run it.
     env:
       ARTCRAFT_LAUNCHER_VERSION: ${{ needs.version.outputs.version }}
       ARTCRAFT_LAUNCHER_BUILD_DATE: ${{ needs.version.outputs.date }}
+      NFPM_VERSION: 2.47.0
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -378,7 +379,10 @@ jobs:
             libxkbcommon-dev:riscv64 libwayland-dev:riscv64 libx11-dev:riscv64 libxrandr-dev:riscv64 \
             libxi-dev:riscv64 libgl1-mesa-dev:riscv64 \
             desktop-file-utils appstream
-      - name: Build and package (tar.gz)
+          curl -fsSL -o "$RUNNER_TEMP/nfpm.deb" \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+          sudo dpkg -i "$RUNNER_TEMP/nfpm.deb"
+      - name: Build and package (deb, rpm, tar.gz)
         env:
           CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
           PKG_CONFIG_SYSROOT_DIR: /
@@ -389,11 +393,11 @@ jobs:
           CROSS_COMPILE: riscv64-linux-gnu-
           EMULATOR: qemu-riscv64
           QEMU_LD_PREFIX: /usr/riscv64-linux-gnu
-        run: packaging/linux/package.sh --formats tar
+        run: packaging/linux/package.sh --formats "deb rpm tar"
       - uses: actions/upload-artifact@v4
         with:
           name: release-linux-riscv64
-          path: dist/release/*.tar.gz
+          path: dist/release/*
           if-no-files-found: error
 
   release:
@@ -420,14 +424,18 @@ jobs:
           expected=(
             "artcraft-launcher-$VERSION-macos-universal.dmg"
             "artcraft-launcher-$VERSION-freebsd-x86_64.tar.gz"
-            "artcraft-launcher-$VERSION-linux-riscv64.tar.gz"
             "artcraft-launcher-web-$VERSION.zip"
           )
           for a in x64 x86 arm64; do
             expected+=("artcraft-launcher-$VERSION-windows-$a.msi" "artcraft-launcher-$VERSION-windows-$a-portable.zip")
           done
+          for a in x86_64 aarch64 riscv64; do
+            for ext in deb rpm tar.gz; do
+              expected+=("artcraft-launcher-$VERSION-linux-$a.$ext")
+            done
+          done
           for a in x86_64 aarch64; do
-            for ext in AppImage AppImage.zsync deb rpm tar.gz flatpak; do
+            for ext in AppImage AppImage.zsync flatpak; do
               expected+=("artcraft-launcher-$VERSION-linux-$a.$ext")
             done
           done

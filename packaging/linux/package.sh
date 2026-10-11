@@ -14,7 +14,7 @@
 # glibc 2.35) so the binaries run on newer ones. Optional: desktop-file-validate, appstreamcli,
 # zsyncmake (the zsync package) for the AppImage's .zsync.
 #
-# Cross builds (CI: riscv64, tar.gz only): set CROSS_ARCH (riscv64), CROSS_TARGET (the Rust
+# Cross builds (CI: riscv64, deb/rpm/tar.gz): set CROSS_ARCH (riscv64), CROSS_TARGET (the Rust
 # triple), CROSS_COMPILE (binutils prefix, for strip) and optionally EMULATOR (e.g. qemu-riscv64)
 # to smoke-test the CLI.
 set -euo pipefail
