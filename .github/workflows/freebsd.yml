@@ -25,4 +25,4 @@ permissions:
 
 jobs:
   freebsd:
-    uses: dylanmtaylor/artcraft-common-actions/.github/workflows/freebsd.yml@main
+    uses: storytold/craft-common-actions/.github/workflows/freebsd.yml@main
