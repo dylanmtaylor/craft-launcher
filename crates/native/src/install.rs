@@ -489,15 +489,27 @@ pub(crate) mod linux {
         }
         match kind {
             PackageKind::Flatpak => {
-                let status = process::flatpak_command()
-                    .args(["install", "--user", "-y", "--noninteractive", "--bundle"])
+                let output = process::flatpak_command()
+                    .args(["install", "--user", "-y", "--noninteractive", "--reinstall", "--bundle"])
                     .arg(f)
-                    .status()
+                    .output()
                     .map_err(|e| format!("couldn't start Flatpak ({e})"))?;
-                if status.success() {
+                if output.status.success() {
                     Ok(())
                 } else {
-                    Err("Flatpak couldn't install the bundle (it needs the Flathub remote for its runtime)".into())
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let err = stderr.trim();
+                    let err = if err.is_empty() {
+                        String::from_utf8_lossy(&output.stdout).trim().to_string()
+                    } else {
+                        err.to_string()
+                    };
+                    if err.is_empty() {
+                        Err("Flatpak couldn't install the bundle (it needs the Flathub remote for its runtime)".into())
+                    } else {
+                        let clean_err = err.strip_prefix("error: ").or_else(|| err.strip_prefix("Error: ")).unwrap_or(&err);
+                        Err(format!("Flatpak couldn't install the bundle: {clean_err}"))
+                    }
                 }
             }
             other => Err(format!("{} isn't a system package", other.label())),
@@ -1258,6 +1270,20 @@ mod tests {
         assert_eq!(ran.len(), 1, "{ran:?}");
         let error = "the system installer stopped with error 100 while handling 2 apps together. Try them one at a time.";
         assert_eq!(results, vec![Err(error.to_string()); 2]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn flatpak_bundle_install_failure_reports_clean_error() {
+        if !crate::process::is_flatpak_available() {
+            return;
+        }
+        let queue = crate::queue::Queue::new();
+        let root = linux::Root { queue: &queue, run: &|_| Ok(()) };
+        let result = linux::install_package_via(&root, PackageKind::Flatpak, Path::new("/nonexistent/file.flatpak"), &Stop::default(), &mut |_| ());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.starts_with("Flatpak couldn't install the bundle: "), "unexpected error: {err}");
     }
 
     #[cfg(target_os = "linux")]
