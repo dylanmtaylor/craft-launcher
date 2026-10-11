@@ -326,7 +326,7 @@ impl LauncherUi {
                 true
             }
             Event::LauncherUpdate(r) => {
-                let fresh = self.launcher_update.as_ref().map_or(true, |cur| cur.version != r.version);
+                let fresh = self.launcher_update.as_ref().is_none_or(|cur| cur.version != r.version);
                 self.launcher_update = Some(r);
                 fresh
             }
@@ -388,11 +388,7 @@ impl LauncherUi {
             .filter(|e| e.status(self.platform, true) == AppStatus::UpdateAvailable && e.job.is_none() && !e.ready)
             .filter_map(|e| {
                 let v = e.latest_label()?;
-                if self.auto_update_attempted.contains(&(e.app.id.to_string(), v.clone())) {
-                    None
-                } else {
-                    Some((e.app.id.to_string(), v))
-                }
+                if self.auto_update_attempted.contains(&(e.app.id.to_string(), v.clone())) { None } else { Some((e.app.id.to_string(), v)) }
             })
             .collect();
         for (id, version) in to_update {

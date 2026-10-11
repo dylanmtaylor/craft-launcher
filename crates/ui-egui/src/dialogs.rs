@@ -181,12 +181,11 @@ impl LauncherUi {
             });
         });
         self.settings.check_every = every;
-        if self.caps.manage_apps {
-            if ui.checkbox(&mut self.settings.auto_update, tl!("Automatically download and install updates")).changed()
-                && self.settings.auto_update
-            {
-                self.trigger_auto_updates();
-            }
+        if self.caps.manage_apps
+            && ui.checkbox(&mut self.settings.auto_update, tl!("Automatically download and install updates")).changed()
+            && self.settings.auto_update
+        {
+            self.trigger_auto_updates();
         }
         ui.checkbox(&mut self.settings.notify, tl!("Notify me when an installed app has an update"));
         ui.checkbox(&mut self.settings.prereleases, tl!("Include pre-releases (betas and release candidates)"));

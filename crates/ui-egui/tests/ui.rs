@@ -739,11 +739,7 @@ fn automatic_updates_queue_installs_for_outdated_apps_and_launcher() {
             if state.is_none()
                 && let Some(b) = backend.take()
             {
-                *state = Some(LauncherUi::new(
-                    ui.ctx(),
-                    Box::new(b),
-                    Settings { auto_update: true, notify: false, ..Settings::default() },
-                ));
+                *state = Some(LauncherUi::new(ui.ctx(), Box::new(b), Settings { auto_update: true, notify: false, ..Settings::default() }));
             }
             if let Some(l) = state.as_mut() {
                 l.logic(&ui.ctx().clone(), &mut NoHost);
@@ -754,18 +750,9 @@ fn automatic_updates_queue_installs_for_outdated_apps_and_launcher() {
     );
     h.run_steps(4);
     let commands = sent.borrow().clone();
-    assert!(
-        commands.contains(&Command::Install { app: "photocraft".into() }),
-        "outdated photocraft should be queued for install: {commands:?}"
-    );
-    assert!(
-        commands.contains(&Command::Install { app: "effectcraft".into() }),
-        "outdated effectcraft should be queued for install: {commands:?}"
-    );
-    assert!(
-        commands.contains(&Command::UpdateLauncher),
-        "launcher update should be queued: {commands:?}"
-    );
+    assert!(commands.contains(&Command::Install { app: "photocraft".into() }), "outdated photocraft should be queued for install: {commands:?}");
+    assert!(commands.contains(&Command::Install { app: "effectcraft".into() }), "outdated effectcraft should be queued for install: {commands:?}");
+    assert!(commands.contains(&Command::UpdateLauncher), "launcher update should be queued: {commands:?}");
 }
 
 #[test]
@@ -780,11 +767,7 @@ fn automatic_updates_are_disabled_by_default() {
             if state.is_none()
                 && let Some(b) = backend.take()
             {
-                *state = Some(LauncherUi::new(
-                    ui.ctx(),
-                    Box::new(b),
-                    Settings { auto_update: false, notify: false, ..Settings::default() },
-                ));
+                *state = Some(LauncherUi::new(ui.ctx(), Box::new(b), Settings { auto_update: false, notify: false, ..Settings::default() }));
             }
             if let Some(l) = state.as_mut() {
                 l.logic(&ui.ctx().clone(), &mut NoHost);
@@ -795,16 +778,9 @@ fn automatic_updates_are_disabled_by_default() {
     );
     h.run_steps(4);
     let commands = sent.borrow().clone();
-    assert!(
-        !commands.contains(&Command::Install { app: "photocraft".into() }),
-        "photocraft should not be auto-installed when auto_update is false"
-    );
-    assert!(
-        !commands.contains(&Command::UpdateLauncher),
-        "launcher should not be auto-updated when auto_update is false"
-    );
+    assert!(!commands.contains(&Command::Install { app: "photocraft".into() }), "photocraft should not be auto-installed when auto_update is false");
+    assert!(!commands.contains(&Command::UpdateLauncher), "launcher should not be auto-updated when auto_update is false");
 }
-
 
 #[test]
 fn the_footer_names_the_services_behind_what_is_on_screen() {
