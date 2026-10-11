@@ -103,6 +103,9 @@ pub struct LauncherUi {
     last_detect: i64,
     /// Whether the window had focus last frame, to re-check when the user comes back to it.
     was_focused: bool,
+    /// Versions of apps or the launcher already queued for auto-update during this session,
+    /// preventing repeated install loops if an update fails or is in progress.
+    pub(crate) auto_update_attempted: std::collections::BTreeSet<(String, String)>,
 }
 
 /// The language to draw in: the preference, or English where it needs a Chinese font the system
@@ -150,6 +153,7 @@ impl LauncherUi {
             sent_options: None,
             last_detect: 0,
             was_focused: true,
+            auto_update_attempted: std::collections::BTreeSet::new(),
         }
     }
 
@@ -170,6 +174,7 @@ impl LauncherUi {
 
     /// Looks for updates now (the tray's "Check for Updates").
     pub fn check_now(&mut self) {
+        self.auto_update_attempted.clear();
         self.backend.send(Command::CheckForUpdates { force: true });
         self.backend.send(Command::Detect);
         self.last_detect = self.backend.now();
@@ -231,6 +236,9 @@ impl LauncherUi {
         }
         if changed {
             self.announce_updates(host);
+            if self.settings.auto_update {
+                self.trigger_auto_updates();
+            }
         }
         if self.restart_requested {
             // The helper is waiting for this process to exit before it starts the new launcher.
@@ -318,8 +326,9 @@ impl LauncherUi {
                 true
             }
             Event::LauncherUpdate(r) => {
+                let fresh = self.launcher_update.as_ref().map_or(true, |cur| cur.version != r.version);
                 self.launcher_update = Some(r);
-                false
+                fresh
             }
             Event::CheckStarted => {
                 self.checking = true;
@@ -365,6 +374,41 @@ impl LauncherUi {
         }
         for (id, _, version) in fresh {
             self.settings.notified.insert(id.to_string(), version);
+        }
+    }
+
+    /// When auto-updates are enabled, automatically downloads and installs pending updates.
+    pub(crate) fn trigger_auto_updates(&mut self) {
+        if !self.caps.manage_apps || !self.settings.auto_update {
+            return;
+        }
+        let to_update: Vec<(String, String)> = self
+            .entries
+            .iter()
+            .filter(|e| e.status(self.platform, true) == AppStatus::UpdateAvailable && e.job.is_none() && !e.ready)
+            .filter_map(|e| {
+                let v = e.latest_label()?;
+                if self.auto_update_attempted.contains(&(e.app.id.to_string(), v.clone())) {
+                    None
+                } else {
+                    Some((e.app.id.to_string(), v))
+                }
+            })
+            .collect();
+        for (id, version) in to_update {
+            self.auto_update_attempted.insert((id.clone(), version));
+            self.send(Command::Install { app: id });
+        }
+        if self.caps.self_update
+            && let Some(r) = &self.launcher_update
+            && self.launcher_job.is_none()
+        {
+            let id = artcraft_launcher_core::catalog::LAUNCHER_ID.to_string();
+            let v = r.version_label();
+            if !self.auto_update_attempted.contains(&(id.clone(), v.clone())) {
+                self.auto_update_attempted.insert((id, v));
+                self.send(Command::UpdateLauncher);
+            }
         }
     }
 

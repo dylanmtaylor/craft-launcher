@@ -97,6 +97,9 @@ pub struct Settings {
     /// the desktop it was on.
     pub show_on_current_desktop: bool,
     pub check_every: CheckEvery,
+    /// Automatically download and install updates when found.
+    #[serde(default)]
+    pub auto_update: bool,
     /// Show a system notification when an installed app has an update.
     pub notify: bool,
     pub prereleases: bool,
@@ -141,6 +144,7 @@ impl Default for Settings {
             close_to_tray: true,
             show_on_current_desktop: true,
             check_every: CheckEvery::Hour,
+            auto_update: false,
             notify: true,
             prereleases: false,
             preferred_kinds: Vec::new(),
