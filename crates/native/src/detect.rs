@@ -184,7 +184,7 @@ pub mod windows {
 
 #[cfg(target_os = "linux")]
 pub mod linux {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::time::Duration;
 
     use artcraft_launcher_core::platform::parse_asset_name;
@@ -198,7 +198,7 @@ pub mod linux {
     pub fn packages() -> Vec<Package> {
         let ours = |name: &str| {
             artcraft_launcher_core::SUITE.iter().any(|a| {
-                [InstallSource::Deb, InstallSource::Pacman, InstallSource::Flatpak]
+                [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak]
                     .iter()
                     .any(|m| crate::packages::candidate_names(a, *m).iter().any(|n| n == name))
             })
@@ -269,9 +269,78 @@ pub mod linux {
             return Some(Installed { version, source: InstallSource::AppImage, location: path.display().to_string(), package: None });
         }
         let order = [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak];
-        let p = packages::find(app, &snapshot.packages, &order)?;
-        let location = if p.manager == InstallSource::Flatpak { app.bundle_id() } else { binary_on_path(app.id) };
-        Some(Installed { version: packages::version_of(p), source: p.manager, location, package: Some(p.name.clone()) })
+        if let Some(p) = packages::find(app, &snapshot.packages, &order) {
+            let location = if p.manager == InstallSource::Flatpak { app.bundle_id() } else { binary_on_path(app.id) };
+            return Some(Installed { version: packages::version_of(p), source: p.manager, location, package: Some(p.name.clone()) });
+        }
+        detect_system_install(app)
+    }
+
+    /// When package manager queries don't report the package (e.g. timeout, unlisted name,
+    /// running inside a container sandbox, or lock conflicts), detect the app from its desktop
+    /// entry or system binary.
+    fn detect_system_install(app: &CraftApp) -> Option<Installed> {
+        let bin = find_binary(app.id);
+        let desktop = find_desktop_file(app);
+        if bin.is_none() && desktop.is_none() {
+            return None;
+        }
+        let bin_path = bin.unwrap_or_else(|| PathBuf::from("/usr/bin").join(app.id));
+        let version = binary_version(&bin_path, app.id);
+        let source = if Path::new("/usr/bin/dpkg").is_file() || which("dpkg").is_some() {
+            InstallSource::Deb
+        } else if Path::new("/usr/bin/rpm").is_file() || which("rpm").is_some() {
+            InstallSource::Rpm
+        } else {
+            InstallSource::Binary
+        };
+        Some(Installed {
+            version,
+            source,
+            location: bin_path.display().to_string(),
+            package: Some(app.id.to_string()),
+        })
+    }
+
+    fn find_binary(id: &str) -> Option<PathBuf> {
+        if let Some(path) = std::env::var_os("PATH") {
+            if let Some(p) = std::env::split_paths(&path).map(|d| d.join(id)).find(|p| p.is_file()) {
+                return Some(p);
+            }
+        }
+        for dir in ["/usr/bin", "/usr/local/bin"] {
+            let p = PathBuf::from(dir).join(id);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        if let Some(home) = dirs::home_dir() {
+            let p = home.join(".local/bin").join(id);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        None
+    }
+
+    fn find_desktop_file(app: &CraftApp) -> Option<PathBuf> {
+        let mut dirs = vec![PathBuf::from("/usr/share/applications"), PathBuf::from("/usr/local/share/applications")];
+        if let Some(data) = dirs::data_dir() {
+            dirs.push(data.join("applications"));
+        }
+        let names = [format!("{}.desktop", app.bundle_id()), format!("{}.desktop", app.id)];
+        dirs.into_iter().flat_map(|d| names.iter().map(move |n| d.join(n))).find(|p| p.is_file())
+    }
+
+    pub(crate) fn binary_version(bin: &Path, id: &str) -> Option<version::Version> {
+        let out = crate::process::capture(bin.to_str()?, &["--version"], Duration::from_secs(5))?;
+        let rest = out.trim().strip_prefix(id)?.trim_start();
+        version::parse(rest.split_whitespace().next()?)
+    }
+
+    fn which(name: &str) -> Option<PathBuf> {
+        let path = std::env::var_os("PATH")?;
+        std::env::split_paths(&path).map(|d| d.join(name)).find(|p| p.is_file())
     }
 }
 
@@ -297,3 +366,40 @@ pub mod freebsd {
         version::parse(rest.split_whitespace().next()?)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn ours_filter_matches_rpm_packages() {
+        let ours = |name: &str| {
+            artcraft_launcher_core::SUITE.iter().any(|a| {
+                [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak]
+                    .iter()
+                    .any(|m| crate::packages::candidate_names(a, *m).iter().any(|n| n == name))
+            })
+        };
+        assert!(ours("photocraft"));
+        assert!(ours("ai.storyteller.photocraft"));
+        assert!(!ours("unrelated-package"));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn reads_binary_version_from_cli() {
+        let photo = CraftApp::by_id("photocraft").unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let bin = temp_dir.path().join("photocraft");
+        std::fs::write(&bin, "#!/bin/sh\necho 'photocraft 0.6.0 (0c72d9542, 2026-10-10)'\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let ver = linux::binary_version(&bin, photo.id);
+        assert_eq!(ver.unwrap().to_string(), "0.6.0");
+    }
+}
+

@@ -4,7 +4,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-/// A `Command` that won't flash a console window on Windows.
+/// A `Command` that won't flash a console window on Windows, and clears AppImage-injected
+/// environment variables that corrupt system helper binaries and external applications.
 pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     #[allow(unused_mut)]
     let mut cmd = Command::new(program);
@@ -14,7 +15,32 @@ pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
+    #[cfg(unix)]
+    clean_appimage_env(&mut cmd);
     cmd
+}
+
+/// Cleans AppImage runtime environment variables so child processes don't load incompatible
+/// libraries from the launcher's bundled AppImage.
+#[cfg(unix)]
+pub fn clean_appimage_env(cmd: &mut Command) {
+    if std::env::var_os("APPIMAGE").is_some() {
+        for var in [
+            "LD_LIBRARY_PATH",
+            "LD_PRELOAD",
+            "APPDIR",
+            "APPIMAGE",
+            "ARGV0",
+            "OWD",
+            "GDK_PIXBUF_MODULE_FILE",
+            "GIO_MODULE_DIR",
+            "GTK_PATH",
+            "PYTHONHOME",
+            "QT_PLUGIN_PATH",
+        ] {
+            cmd.env_remove(var);
+        }
+    }
 }
 
 /// Runs a helper and returns its standard output when it succeeds within `timeout`.
@@ -57,24 +83,6 @@ pub fn launch_binary(exe: &Path, args: &[&str]) -> Result<(), String> {
     cmd.args(args);
     if let Some(dir) = exe.parent() {
         cmd.current_dir(dir);
-    }
-    // An AppImage'd launcher sets these for itself; they'd break the app we start.
-    for var in [
-        "LD_LIBRARY_PATH",
-        "LD_PRELOAD",
-        "APPDIR",
-        "APPIMAGE",
-        "ARGV0",
-        "OWD",
-        "GDK_PIXBUF_MODULE_FILE",
-        "GIO_MODULE_DIR",
-        "GTK_PATH",
-        "PYTHONHOME",
-        "QT_PLUGIN_PATH",
-    ] {
-        if std::env::var_os("APPIMAGE").is_some() {
-            cmd.env_remove(var);
-        }
     }
     spawn_detached(cmd)
 }
