@@ -226,15 +226,15 @@ jobs:
     name: Flatpak ${{ matrix.arch }}
     needs: [version, linux]
     # Repackages the Linux job's tarball (the same binary as the AppImage/deb/rpm); no Rust
-    # build here. 26.04 for a newer flatpak-builder than 22.04 ships.
+    # build here. 24.04 for a newer flatpak-builder (1.4) than 22.04 ships.
     runs-on: ${{ matrix.runner }}
     # No `environment: release`: this job signs nothing, so it gets no release secrets.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { arch: x86_64, runner: ubuntu-26.04 }
-          - { arch: aarch64, runner: ubuntu-26.04-arm }
+          - { arch: x86_64, runner: ubuntu-24.04 }
+          - { arch: aarch64, runner: ubuntu-24.04-arm }
     env:
       ARTCRAFT_LAUNCHER_VERSION: ${{ needs.version.outputs.version }}
       ARTCRAFT_LAUNCHER_BUILD_DATE: ${{ needs.version.outputs.date }}
@@ -250,7 +250,7 @@ jobs:
           # librsvg2-common: the SVG pixbuf loader. flatpak-builder runs the host's
           # `appstreamcli compose`, which renders the scalable icon and fails without it.
           sudo apt-get install -y --no-install-recommends flatpak flatpak-builder librsvg2-common
-          # Ubuntu 26.04's AppArmor blocks the unprivileged user namespaces bubblewrap needs.
+          # Ubuntu 24.04's AppArmor blocks the unprivileged user namespaces bubblewrap needs.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build the Flatpak bundle
         run: packaging/linux/flatpak-bundle.sh "dist/linux/artcraft-launcher-$ARTCRAFT_LAUNCHER_VERSION-linux-${{ matrix.arch }}.tar.gz"
@@ -339,9 +339,10 @@ jobs:
     name: Linux riscv64
     needs: version
     # Cross-compiled on x86_64 (no hosted RISC-V runners) against the runner's own Ubuntu release
-    # from ports.ubuntu.com, so the binaries need that release's glibc. deb, rpm, and tar.gz;
-    # artcraft-launcher --version is smoke-tested under QEMU. Follows PhotoCraft's linux-riscv64 job.
-    runs-on: ubuntu-26.04
+    # from ports.ubuntu.com, so the binaries need that release's glibc (24.04: 2.39). 22.04's
+    # riscv64 ports lag its amd64 updates, which breaks the multiarch install. deb, rpm, and
+    # tar.gz; artcraft-launcher --version is smoke-tested under QEMU. Follows PhotoCraft's job.
+    runs-on: ubuntu-24.04
     # No `environment: release`: this job reads no secrets, so a branch dry run can run it.
     env:
       ARTCRAFT_LAUNCHER_VERSION: ${{ needs.version.outputs.version }}

@@ -214,7 +214,7 @@ fn visitor_platform() -> Option<Platform> {
     };
     let arch = if ua.contains("aarch64") || ua.contains("arm64") || ua.contains("armv8") {
         Arch::Arm64
-    } else if ua.contains("riscv64") || ua.contains("riscv") {
+    } else if ua.contains("riscv") {
         Arch::Riscv64
     } else {
         Arch::X64

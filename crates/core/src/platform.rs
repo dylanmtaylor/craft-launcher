@@ -155,21 +155,21 @@ impl Platform {
 
     /// Package formats the launcher installs on this OS, in order of preference.
     pub fn default_kinds(self) -> &'static [PackageKind] {
-        match (self.os, self.arch) {
-            (Os::Windows, _) => &[PackageKind::Msi, PackageKind::PortableZip],
-            (Os::MacOs, _) => &[PackageKind::Dmg],
-            (Os::Linux, _) => &[PackageKind::AppImage, PackageKind::TarGz],
-            (Os::FreeBsd, _) => &[PackageKind::TarGz],
+        match self.os {
+            Os::Windows => &[PackageKind::Msi, PackageKind::PortableZip],
+            Os::MacOs => &[PackageKind::Dmg],
+            Os::Linux => &[PackageKind::AppImage, PackageKind::TarGz],
+            Os::FreeBsd => &[PackageKind::TarGz],
         }
     }
 
     /// Every format offered as a manual download on this OS (the web build's download menu).
     pub fn download_kinds(self) -> &'static [PackageKind] {
-        match (self.os, self.arch) {
-            (Os::Windows, _) => &[PackageKind::Msi, PackageKind::PortableZip],
-            (Os::MacOs, _) => &[PackageKind::Dmg],
-            (Os::Linux, _) => &[PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz],
-            (Os::FreeBsd, _) => &[PackageKind::TarGz],
+        match self.os {
+            Os::Windows => &[PackageKind::Msi, PackageKind::PortableZip],
+            Os::MacOs => &[PackageKind::Dmg],
+            Os::Linux => &[PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz],
+            Os::FreeBsd => &[PackageKind::TarGz],
         }
     }
 }
@@ -285,13 +285,19 @@ mod tests {
         assert_eq!(pick(Os::Windows, Arch::X86, &[PackageKind::PortableZip, PackageKind::Msi]).as_deref(), Some("photocraft-0.5.0-windows-x86.msi"));
 
         let p_riscv = Platform { os: Os::Linux, arch: Arch::Riscv64 };
-        assert_eq!(pick_asset(&r, &["photocraft"], p_riscv, p_riscv.default_kinds()).map(|(a, _)| a.name.clone()).as_deref(), Some("photocraft-0.5.0-linux-riscv64.tar.gz"));
-        assert_eq!(pick_asset(&r, &["photocraft"], p_riscv, p_riscv.download_kinds()).map(|(a, _)| a.name.clone()).as_deref(), Some("photocraft-0.5.0-linux-riscv64.tar.gz"));
-        let r_riscv_deb = release(&[
-            "photocraft-0.5.0-linux-riscv64.tar.gz",
-            "photocraft-0.5.0-linux-riscv64.deb",
-            "photocraft-0.5.0-linux-riscv64.rpm",
-        ]);
-        assert_eq!(pick_asset(&r_riscv_deb, &["photocraft"], p_riscv, p_riscv.download_kinds()).map(|(a, _)| a.name.clone()).as_deref(), Some("photocraft-0.5.0-linux-riscv64.deb"));
+        assert_eq!(
+            pick_asset(&r, &["photocraft"], p_riscv, p_riscv.default_kinds()).map(|(a, _)| a.name.clone()).as_deref(),
+            Some("photocraft-0.5.0-linux-riscv64.tar.gz")
+        );
+        assert_eq!(
+            pick_asset(&r, &["photocraft"], p_riscv, p_riscv.download_kinds()).map(|(a, _)| a.name.clone()).as_deref(),
+            Some("photocraft-0.5.0-linux-riscv64.tar.gz")
+        );
+        let r_riscv_deb =
+            release(&["photocraft-0.5.0-linux-riscv64.tar.gz", "photocraft-0.5.0-linux-riscv64.deb", "photocraft-0.5.0-linux-riscv64.rpm"]);
+        assert_eq!(
+            pick_asset(&r_riscv_deb, &["photocraft"], p_riscv, p_riscv.download_kinds()).map(|(a, _)| a.name.clone()).as_deref(),
+            Some("photocraft-0.5.0-linux-riscv64.deb")
+        );
     }
 }
