@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   release:
-    uses: storytold/craft-common-actions/.github/workflows/release.yml@27a978f0ac7672681700ceacc9c8e9930d367e4d # v1.0.0
+    # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
+    uses: storytold/craft-common-actions/.github/workflows/release.yml@main
     with:
       app-name: craft-launcher
       app-title: ArtCraft Launcher
