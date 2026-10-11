@@ -119,7 +119,7 @@ Release assets (keep these names exact; the launcher's own self-update and the R
 |---|---|
 | Windows | `artcraft-launcher-<ver>-windows-{x64,x86,arm64}.msi`, `…-windows-{x64,x86,arm64}-portable.zip` |
 | macOS | `artcraft-launcher-<ver>-macos-universal.dmg` |
-| Linux | `artcraft-launcher-<ver>-linux-{x86_64,aarch64}.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}` |
+| Linux | `artcraft-launcher-<ver>-linux-{x86_64,aarch64}.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}`, `artcraft-launcher-<ver>-linux-riscv64.tar.gz` |
 | FreeBSD | `artcraft-launcher-<ver>-freebsd-x86_64.tar.gz` |
 | Web | `artcraft-launcher-web-<ver>.zip` |
 

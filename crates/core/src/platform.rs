@@ -34,6 +34,7 @@ pub enum Arch {
     X64,
     X86,
     Arm64,
+    Riscv64,
 }
 
 impl Arch {
@@ -42,6 +43,7 @@ impl Arch {
             Self::X64 => "x64",
             Self::X86 => "x86",
             Self::Arm64 => "ARM64",
+            Self::Riscv64 => "RISC-V",
         }
     }
 }
@@ -118,6 +120,8 @@ impl Platform {
             Arch::X86
         } else if cfg!(target_arch = "aarch64") {
             Arch::Arm64
+        } else if cfg!(target_arch = "riscv64") {
+            Arch::Riscv64
         } else {
             return None;
         };
@@ -141,6 +145,7 @@ impl Platform {
             (Os::MacOs, _) => &["macos-universal", "macos-aarch64", "macos-arm64", "macos-x86_64"],
             (Os::Linux, Arch::X64) => &["linux-x86_64"],
             (Os::Linux, Arch::Arm64) => &["linux-aarch64"],
+            (Os::Linux, Arch::Riscv64) => &["linux-riscv64"],
             (Os::Linux, Arch::X86) => &[],
             (Os::FreeBsd, Arch::X64) => &["freebsd-x86_64"],
             (Os::FreeBsd, _) => &[],
@@ -149,21 +154,23 @@ impl Platform {
 
     /// Package formats the launcher installs on this OS, in order of preference.
     pub fn default_kinds(self) -> &'static [PackageKind] {
-        match self.os {
-            Os::Windows => &[PackageKind::Msi, PackageKind::PortableZip],
-            Os::MacOs => &[PackageKind::Dmg],
-            Os::Linux => &[PackageKind::AppImage, PackageKind::TarGz],
-            Os::FreeBsd => &[PackageKind::TarGz],
+        match (self.os, self.arch) {
+            (Os::Windows, _) => &[PackageKind::Msi, PackageKind::PortableZip],
+            (Os::MacOs, _) => &[PackageKind::Dmg],
+            (Os::Linux, Arch::Riscv64) => &[PackageKind::TarGz, PackageKind::AppImage],
+            (Os::Linux, _) => &[PackageKind::AppImage, PackageKind::TarGz],
+            (Os::FreeBsd, _) => &[PackageKind::TarGz],
         }
     }
 
     /// Every format offered as a manual download on this OS (the web build's download menu).
     pub fn download_kinds(self) -> &'static [PackageKind] {
-        match self.os {
-            Os::Windows => &[PackageKind::Msi, PackageKind::PortableZip],
-            Os::MacOs => &[PackageKind::Dmg],
-            Os::Linux => &[PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz],
-            Os::FreeBsd => &[PackageKind::TarGz],
+        match (self.os, self.arch) {
+            (Os::Windows, _) => &[PackageKind::Msi, PackageKind::PortableZip],
+            (Os::MacOs, _) => &[PackageKind::Dmg],
+            (Os::Linux, Arch::Riscv64) => &[PackageKind::TarGz, PackageKind::Deb, PackageKind::Rpm, PackageKind::AppImage, PackageKind::Flatpak],
+            (Os::Linux, _) => &[PackageKind::AppImage, PackageKind::Deb, PackageKind::Rpm, PackageKind::Flatpak, PackageKind::TarGz],
+            (Os::FreeBsd, _) => &[PackageKind::TarGz],
         }
     }
 }
@@ -234,6 +241,7 @@ mod tests {
         "photocraft-0.5.0-linux-aarch64.AppImage",
         "photocraft-0.5.0-linux-aarch64.AppImage.zsync",
         "photocraft-0.5.0-linux-aarch64.deb",
+        "photocraft-0.5.0-linux-riscv64.tar.gz",
         "photocraft-0.5.0-linux-x86_64.AppImage",
         "photocraft-0.5.0-linux-x86_64.tar.gz",
         "photocraft-0.5.0-macos-universal.dmg",
@@ -268,6 +276,7 @@ mod tests {
         assert_eq!(pick(Os::Windows, Arch::Arm64, &[PackageKind::Msi]).as_deref(), Some("photocraft-0.5.0-windows-x64.msi"));
         assert_eq!(pick(Os::Linux, Arch::Arm64, &[PackageKind::AppImage]).as_deref(), Some("photocraft-0.5.0-linux-aarch64.AppImage"));
         assert_eq!(pick(Os::Linux, Arch::Arm64, &[PackageKind::TarGz]), None);
+        assert_eq!(pick(Os::Linux, Arch::Riscv64, &[PackageKind::TarGz]).as_deref(), Some("photocraft-0.5.0-linux-riscv64.tar.gz"));
         assert_eq!(pick(Os::FreeBsd, Arch::X64, &[PackageKind::TarGz]).as_deref(), Some("photocraft-0.5.0-freebsd-x86_64.tar.gz"));
         // Preference order across kinds.
         assert_eq!(
