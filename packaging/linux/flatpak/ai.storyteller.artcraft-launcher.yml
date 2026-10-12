@@ -31,6 +31,23 @@ finish-args:
   # Tray icon (StatusNotifierItem) and desktop notifications, both over the session bus.
   - --talk-name=org.kde.StatusNotifierWatcher
   - --talk-name=org.freedesktop.Notifications
+  # Own bus names: a StatusNotifierItem must own a bus name before the watcher can claim it.
+  # Without --own-name the tray/notification client waits forever on a reply that never comes,
+  # and the whole UI freezes in do_epoll_wait.
+  - --own-name=ai.storyteller.artcraft-launcher
+  - --own-name=ai.artcraft.app
+  # Talking to the session bus daemon itself; required before any other bus call resolves.
+  - --talk-name=org.freedesktop.DBus
+  # Non-KDE watchers advertise under their own name, not org.kde.StatusNotifierWatcher.
+  - --talk-name=org.freedesktop.StatusNotifierWatcher
+  # Other desktop services the toolkit queries at startup (accessibility, portals).
+  - --talk-name=org.a11y.Bus
+  - --talk-name=org.freedesktop.portal.Desktop
+  # Display fallbacks so GUI toolkits find the servers even when the host never exported these.
+  # XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS are set correctly by the sandbox itself (they
+  # carry the user's uid, which cannot be hard-coded here).
+  - --env=DISPLAY=:0
+  - --env=WAYLAND_DISPLAY=wayland-0
   # LIMITATION: a launcher inside a Flatpak sandbox cannot install software on the host by
   # itself. It may run `flatpak-spawn --host` (org.freedesktop.Flatpak) to start installed apps
   # and host installers, and it gets the home directory so downloaded AppImages and tarballs land
@@ -59,6 +76,22 @@ modules:
         install -d /app/share/metainfo;
         sed -e "s/@VERSION@/$version/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/"
         packaging/linux/ai.storyteller.artcraft-launcher.metainfo.xml.in > /app/share/metainfo/ai.storyteller.artcraft-launcher.metainfo.xml
+      # Strip leftover debug symbols: smaller app, no dangling debug links into the build sandbox
+      # (a stripped binary also avoids sandbox conflicts when the debuginfod client fetches
+      # separate debug files at runtime).
+      - strip --strip-unneeded /app/bin/artcraft-launcher
+    # Development artifacts that must never ship inside the app.
+    cleanup:
+      - '*.debug'
+      - '*.pdb'
+      - '*.o'
+      - '*.a'
+      - '*.la'
+      - '*.cmake'
+      - /include
+      - /lib/debug
+      - /share/debug
+      - /share/man
     sources:
       - type: dir
         path: ../../..
