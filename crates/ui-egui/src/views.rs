@@ -63,9 +63,6 @@ const CARD_PAD: f32 = 20.0;
 /// Room macOS's traffic lights take at the left of the header.
 const TRAFFIC_LIGHTS_W: f32 = 72.0;
 
-/// A run of cards, under an optional (number, title) eyebrow.
-type Section = (Option<(&'static str, &'static str)>, Vec<&'static str>);
-
 impl LauncherUi {
     /// The header bar; with a custom or macOS title bar it is also the window's title bar.
     pub(crate) fn header(&mut self, ui: &mut Ui, bar: TitleBar) {
@@ -379,44 +376,15 @@ impl LauncherUi {
         // Neighbouring cards share their 1 px hairline, like the site's `gap-px` grid.
         let cols = ((width / CARD_MIN_W).floor() as usize).max(1);
         let card_w = (width + (cols as f32 - 1.0)) / cols as f32;
-        // In suite order, split into the classic apps and the new ones.
-        let grouped = self.settings.sort == SortKey::Suite && self.settings.filter == Filter::All && self.search.trim().is_empty();
-        let sections: Vec<Section> = if grouped {
-            [(AppGroup::Classic, "01", tl!("Classic apps")), (AppGroup::New, "02", tl!("New apps"))]
-                .iter()
-                .map(|(g, index, title)| {
-                    let list = ids.iter().copied().filter(|id| self.entry(id).is_some_and(|e| e.app.group == *g)).collect();
-                    (Some((*index, *title)), list)
-                })
-                .collect()
-        } else {
-            vec![(None, ids.to_vec())]
-        };
-        let t = Tokens::get(ui.ctx());
-        for (title, list) in sections {
-            if list.is_empty() {
-                continue;
-            }
-            if let Some((index, title)) = title {
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    widgets::eyebrow(ui, index, title);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        widgets::hud(ui, &tn(list.len() as u64, "{n} app", "{n} apps"), t.faint);
-                    });
-                });
-                ui.add_space(10.0);
-            }
-            let rows = list.len().div_ceil(cols);
-            let height = rows as f32 * (CARD_H - 1.0) + 1.0;
-            let (area, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
-            for (i, id) in list.iter().enumerate() {
-                let (row, col) = (i / cols, i % cols);
-                let min = area.min + vec2(col as f32 * (card_w - 1.0), row as f32 * (CARD_H - 1.0));
-                self.card(ui, id, Rect::from_min_size(min, vec2(card_w, CARD_H)));
-            }
-            ui.add_space(24.0);
+        let rows = ids.len().div_ceil(cols);
+        let height = rows as f32 * (CARD_H - 1.0) + 1.0;
+        let (area, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        for (i, id) in ids.iter().enumerate() {
+            let (row, col) = (i / cols, i % cols);
+            let min = area.min + vec2(col as f32 * (card_w - 1.0), row as f32 * (CARD_H - 1.0));
+            self.card(ui, id, Rect::from_min_size(min, vec2(card_w, CARD_H)));
         }
+        ui.add_space(24.0);
     }
 
     fn card(&mut self, ui: &mut Ui, id: &str, rect: Rect) {
