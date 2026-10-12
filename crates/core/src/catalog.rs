@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Which generation of the suite an app belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AppGroup {
-    /// The seven original apps, each with a page on getartcraft.com.
+    /// The seven original apps.
     Classic,
     /// The five apps added after them.
     New,
@@ -68,9 +68,9 @@ impl CraftApp {
         format!("https://github.com/{}", self.repo)
     }
 
-    /// The app's page on getartcraft.com (classic apps only).
-    pub fn website(&self) -> Option<String> {
-        (self.group == AppGroup::Classic).then(|| format!("https://getartcraft.com/apps/{}", self.id))
+    /// The app's page on getartcraft.com.
+    pub fn website(&self) -> String {
+        format!("https://getartcraft.com/apps/{}", self.id)
     }
 
     /// Asset stems this app's releases may use, current first.
@@ -285,7 +285,7 @@ mod tests {
     fn pdfcraft_also_answers_to_printcraft() {
         let pdf = CraftApp::by_id("pdfcraft").unwrap();
         assert_eq!(pdf.stems().collect::<Vec<_>>(), ["pdfcraft", "printcraft"]);
-        assert_eq!(pdf.website().as_deref(), Some("https://getartcraft.com/apps/pdfcraft"));
-        assert_eq!(CraftApp::by_id("wordcraft").unwrap().website(), None);
+        assert_eq!(pdf.website(), "https://getartcraft.com/apps/pdfcraft");
+        assert_eq!(CraftApp::by_id("wordcraft").unwrap().website(), "https://getartcraft.com/apps/wordcraft");
     }
 }

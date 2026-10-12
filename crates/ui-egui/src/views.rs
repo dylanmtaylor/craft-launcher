@@ -445,9 +445,7 @@ impl LauncherUi {
             strip_ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 16.0;
                 widgets::hud_link(ui, tl!("GitHub"), &app.repo_url());
-                if let Some(site) = app.website() {
-                    widgets::hud_link(ui, tl!("Website"), &site);
-                }
+                widgets::hud_link(ui, tl!("Website"), &app.website());
             });
         }
 
@@ -884,12 +882,7 @@ impl LauncherUi {
                     ui.close();
                 }
             };
-            match entry.app.website() {
-                Some(site) => link(ui, tl!("Website"), site),
-                None => {
-                    ui.add_enabled(false, egui::Button::new(tl!("Website (coming soon)")));
-                }
-            }
+            link(ui, tl!("Website"), entry.app.website());
             link(ui, tl!("GitHub repository"), entry.app.repo_url());
             link(ui, tl!("All releases"), entry.app.releases_url());
         });
