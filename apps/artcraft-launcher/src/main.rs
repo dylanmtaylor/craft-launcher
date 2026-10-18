@@ -722,17 +722,13 @@ impl eframe::App for Shell<'_> {
         self.launcher.ui.ui(ui, &mut self.launcher.host);
         ui.ctx().output_mut(|o| {
             o.commands.retain(|cmd| {
-                if let egui::OutputCommand::OpenUrl(open_url) = cmd {
-                    if open_url.url == artcraft_launcher_core::catalog::DISCORD_APP_URL {
-                        artcraft_launcher_native::process::open_url_with_fallback(&open_url.url, artcraft_launcher_core::catalog::DISCORD_URL);
-                        return false;
-                    }
-                    if !open_url.url.starts_with("http://") && !open_url.url.starts_with("https://") {
-                        if let Err(e) = artcraft_launcher_native::process::open(std::ffi::OsStr::new(&open_url.url)) {
-                            log::warn!("couldn't open {}: {e}", open_url.url);
-                        }
-                        return false;
-                    }
+                // The Discord deep link goes to the system opener, falling back to the web invite;
+                // egui's own link handling only opens web pages.
+                if let egui::OutputCommand::OpenUrl(open_url) = cmd
+                    && open_url.url == artcraft_launcher_core::catalog::DISCORD_APP_URL
+                {
+                    artcraft_launcher_native::process::open_url_with_fallback(&open_url.url, artcraft_launcher_core::catalog::DISCORD_URL);
+                    return false;
                 }
                 true
             });

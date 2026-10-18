@@ -238,23 +238,6 @@ fn detect_discord_scheme_handler() -> bool {
         }
     }
 
-    // 3. In sandbox, check if host exports desktop files with x-scheme-handler/discord.
-    if in_sandbox() {
-        let host_check = capture(
-            "flatpak-spawn",
-            &[
-                "--host",
-                "sh",
-                "-c",
-                "grep -s 'x-scheme-handler/discord' /var/lib/flatpak/exports/share/applications/com.discordapp.Discord*.desktop ~/.local/share/flatpak/exports/share/applications/com.discordapp.Discord*.desktop /usr/share/applications/discord*.desktop ~/.local/share/applications/discord*.desktop",
-            ],
-            Duration::from_millis(800),
-        );
-        if host_check.is_some_and(|out| !out.trim().is_empty()) {
-            return true;
-        }
-    }
-
     false
 }
 
@@ -307,12 +290,16 @@ pub fn launch_binary(exe: &Path, args: &[&str]) -> Result<(), String> {
 
 /// Opens a file, folder or URL with the system's default handler.
 pub fn open(target: &std::ffi::OsStr) -> Result<(), String> {
+    spawn_detached(opener(target))
+}
+
+/// The system's default opener for `target`: `explorer` on Windows, `open` on macOS, and
+/// `xdg-open` elsewhere (on the host, through `flatpak-spawn --host`, inside the sandbox).
+fn opener(target: &std::ffi::OsStr) -> Command {
     let mut cmd = if cfg!(target_os = "macos") {
         command("open")
     } else if cfg!(windows) {
-        let mut c = command("explorer");
-        c.arg(target);
-        return spawn_detached(c);
+        command("explorer")
     } else if in_sandbox() {
         let mut c = command("flatpak-spawn");
         c.arg("--host").arg("xdg-open");
@@ -321,7 +308,7 @@ pub fn open(target: &std::ffi::OsStr) -> Result<(), String> {
         command("xdg-open")
     };
     cmd.arg(target);
-    spawn_detached(cmd)
+    cmd
 }
 
 /// Opens `primary_url` with the system's default handler. If opening fails (for example,
@@ -337,48 +324,36 @@ pub fn open_url_with_fallback(primary_url: &str, fallback_url: &str) {
     });
 }
 
-/// Spawns the default system opener for `target` and returns `true` if it launched
-/// successfully without immediately exiting in error.
-fn open_and_wait_success(target: &str, _timeout: Duration) -> bool {
-    #[cfg(windows)]
-    {
-        let mut c = command("explorer");
-        c.arg(target);
-        spawn_detached(c).is_ok()
+/// Starts the default system opener for `target` and returns `true` unless it fails to start
+/// or exits in error within `timeout`. An opener still running after `timeout` counts as
+/// success and is reaped in the background.
+///
+/// `explorer` exits with an error status even when it opens the target, so on Windows only a
+/// failure to start counts; the registry check in `detect_discord_scheme_handler` covers the rest.
+fn open_and_wait_success(target: &str, timeout: Duration) -> bool {
+    let mut cmd = opener(std::ffi::OsStr::new(target));
+    if cfg!(windows) {
+        return spawn_detached(cmd).is_ok();
     }
-    #[cfg(not(windows))]
-    {
-        let mut cmd = if cfg!(target_os = "macos") {
-            command("open")
-        } else if in_sandbox() {
-            let mut c = command("flatpak-spawn");
-            c.arg("--host").arg("xdg-open");
-            c
-        } else {
-            command("xdg-open")
-        };
-        cmd.arg(target);
-
-        let mut child = match cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn() {
-            Ok(c) => c,
-            Err(e) => {
-                log::warn!("couldn't spawn opener for {target}: {e}");
-                return false;
+    let mut child = match cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("couldn't start the opener for {target}: {e}");
+            return false;
+        }
+    };
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) if start.elapsed() < timeout => std::thread::sleep(Duration::from_millis(25)),
+            Ok(None) => {
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+                return true;
             }
-        };
-
-        let start = Instant::now();
-        loop {
-            match child.try_wait() {
-                Ok(Some(status)) => return status.success(),
-                Ok(None) => {
-                    if start.elapsed() >= _timeout {
-                        return true;
-                    }
-                    std::thread::sleep(Duration::from_millis(25));
-                }
-                Err(_) => return false,
-            }
+            Err(_) => return false,
         }
     }
 }
