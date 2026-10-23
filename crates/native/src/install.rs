@@ -959,7 +959,9 @@ pub(crate) mod linux {
         let staging = super::staging_dir(&dir)?;
         let partial = staging.path().join(name);
         std::fs::copy(file, &partial).map_err(|e| format!("couldn't copy the AppImage ({e})"))?;
-        std::fs::set_permissions(&partial, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+        // The AppImage is the program the user just installed and must be executable; 0o755 is
+        // not group/world-writable.
+        std::fs::set_permissions(&partial, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?; // NOSONAR
         std::fs::rename(&partial, &dest).map_err(|e| format!("couldn't put the AppImage in place ({e})"))?;
         let mut removed = Vec::new();
         if let Some(old) = previous.filter(|r| r.kind == PackageKind::AppImage && r.path != dest)
@@ -1022,7 +1024,9 @@ pub(crate) mod linux {
         if !here.metadata().map_err(|e| e.to_string())?.file_type().is_file() {
             return Err("the download's app binary isn't a regular file".into());
         }
-        std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).map_err(|e| format!("couldn't make {} runnable ({e})", bin.display()))
+        // Verified non-symlink regular file inside the launcher's apps folder; the app binary must
+        // be executable and 0o755 is not group/world-writable.
+        std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).map_err(|e| format!("couldn't make {} runnable ({e})", bin.display())) // NOSONAR
     }
 
     /// Removes a tree the launcher unpacked in [`install_tree`], keeping the app's `home/`: the

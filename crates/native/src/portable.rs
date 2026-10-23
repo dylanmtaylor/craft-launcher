@@ -94,6 +94,17 @@ fn linked(meta: &std::fs::Metadata) -> bool {
 }
 
 struct Staging(PathBuf);
+impl Staging {
+    /// Stop cleaning up and hand the directory back: used when a rollback failed and the backup
+    /// is the only copy left for manual recovery.
+    fn keep(self) -> PathBuf {
+        let path = self.0.clone();
+        // Deliberately skipping Drop here is the whole point — it would delete the recovery
+        // files. The directory is handed to the operator, not leaked into nothing.
+        std::mem::forget(self); // NOSONAR
+        path
+    }
+}
 impl Drop for Staging {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
@@ -304,8 +315,7 @@ pub fn install(
         for relative in moved {
             if let Err(restore) = std::fs::copy(backup.join(&relative), destination.join(&relative)) {
                 // Preserve backups for manual recovery if the disk won't accept a rollback.
-                let backup_path = staging.0.clone();
-                std::mem::forget(staging);
+                let backup_path = staging.keep();
                 return Err(format!("{error}; could not restore the previous version ({restore}). Recovery files: {}", backup_path.display()));
             }
         }
