@@ -38,7 +38,7 @@ mkdir -p "$TMP/tools"
 cat >"$TMP/tools/gtk-update-icon-cache" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >> "$CACHE_CALLS"
-if [[ -n "$REAL_CACHE_UPDATER" ]]; then
+if [ -n "$REAL_CACHE_UPDATER" ]; then
   "$REAL_CACHE_UPDATER" "$@"
 fi
 EOF
