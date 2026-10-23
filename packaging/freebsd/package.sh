@@ -21,7 +21,7 @@ PKG=artcraft-launcher
 
 SKIP_BUILD=0
 DRY_RUN=0
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=1; shift ;;
     --dry-run) DRY_RUN=1; SKIP_BUILD=1; shift ;;
@@ -37,7 +37,7 @@ case "$MACHINE" in
   arm64 | aarch64) ARCH=aarch64 ;;
   *) echo "unsupported architecture $MACHINE" >&2; exit 2 ;;
 esac
-if [ "$DRY_RUN" = 0 ] && [ "$(uname -s)" != FreeBSD ]; then
+if [[ "$DRY_RUN" = 0 ]] && [[ "$(uname -s)" != FreeBSD ]]; then
   echo "error: build on FreeBSD (or pass --dry-run to check the tree layout)" >&2
   exit 2
 fi
@@ -46,7 +46,7 @@ BASENAME="$PKG-$VERSION-freebsd-$ARCH"
 echo "==> ArtCraft Launcher $VERSION for FreeBSD $ARCH"
 
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"
-if [ "$SKIP_BUILD" = 0 ]; then
+if [[ "$SKIP_BUILD" = 0 ]]; then
   (cd "$ROOT" && cargo build --release --locked -p "$PKG")
 fi
 WORK="$CARGO_TARGET_DIR/freebsd-package"
@@ -56,7 +56,7 @@ mkdir -p "$WORK"
 
 BIN="$CARGO_TARGET_DIR/release"
 OUT_DIR="$DIST"
-if [ "$DRY_RUN" = 1 ]; then
+if [[ "$DRY_RUN" = 1 ]]; then
   # A stub binary, and the tarball stays in the work dir so dist/ only ever holds real builds.
   BIN="$WORK/stub-bin"
   OUT_DIR="$WORK"
@@ -81,7 +81,7 @@ copy_docs "$STAGE/share/doc/$PKG"
 for f in "bin/$PKG" "share/applications/$APP_ID.desktop" \
   "share/icons/hicolor/256x256/apps/$APP_ID.png" "share/icons/hicolor/scalable/apps/$APP_ID.svg" \
   "share/doc/$PKG/LICENSE-MIT" "share/doc/$PKG/LICENSE-APACHE"; do
-  if [ ! -e "$STAGE/$f" ]; then echo "error: $f is missing from the package" >&2; exit 1; fi
+  if [[ ! -e "$STAGE/$f" ]]; then echo "error: $f is missing from the package" >&2; exit 1; fi
 done
 
 # ---- .tar.gz ------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ mkdir -p "$OUT_DIR"
 tar -C "$WORK" -czf "$OUT_DIR/$BASENAME.tar.gz" "$BASENAME"
 echo "wrote $OUT_DIR/$BASENAME.tar.gz"
 
-if [ "$DRY_RUN" = 1 ]; then
+if [[ "$DRY_RUN" = 1 ]]; then
   echo "==> dry run: tarball contents"
   tar -tzvf "$OUT_DIR/$BASENAME.tar.gz"
 fi
