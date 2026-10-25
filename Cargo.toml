@@ -30,7 +30,7 @@ semver = { version = "1", features = ["serde"] }
 log = "0.4"
 # All date/time conversion goes through jiff (no hand-rolled calendar code beyond the 400-year range extension; AGENTS.md).
 jiff = "0.2"
-craft-update = { git = "https://github.com/storytold/craft-libs", version = "=0.1.0", rev = "fcd3441993ee238144ee56538ad81b4a333f1ed9" }
+craft-update = { git = "https://github.com/storytold/craft-libs", version = "=0.1.0", rev = "b9ba47f58902e839a8f102b824bb9f0beaac335c" }
 
 [profile.dev.package."*"]
 opt-level = 2
