@@ -93,10 +93,6 @@ pub fn update(
     let update_platform = to_update_platform(platform);
     let update_paths = to_update_paths(paths);
     let update_http = craft_update::Http::new("ArtCraft-Launcher/SelfUpdate")?;
-    let update_stop = craft_update::Stop::default();
-    if stop.check().is_err() {
-        update_stop.cancel();
-    }
     let mut update_phase = |p: craft_update::JobPhase| {
         phase(match p {
             craft_update::JobPhase::Downloading { done, total } => JobPhase::Downloading { done, total },
@@ -114,7 +110,7 @@ pub fn update(
         update_platform,
         &update_http,
         &update_paths,
-        &update_stop,
+        stop,
         &mut update_phase,
         last,
         Some(env!("CARGO_PKG_VERSION")),
