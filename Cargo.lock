@@ -970,7 +970,7 @@ dependencies = [
 [[package]]
 name = "craft-update"
 version = "0.1.0"
-source = "git+https://github.com/dylanmtaylor/craft-libs?branch=feat%2Fcraft-update#ce9b02935e1c6b0b4ea58ad1b6d850d302e4e0b5"
+source = "git+https://github.com/storytold/craft-libs?rev=fe61243ebfd7f9a7bea4cc326028e859d6aab052#fe61243ebfd7f9a7bea4cc326028e859d6aab052"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
