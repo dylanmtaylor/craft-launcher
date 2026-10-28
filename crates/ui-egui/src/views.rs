@@ -16,12 +16,15 @@ use crate::settings::{Filter, SortKey, ViewMode};
 use crate::theme::{self, Tokens, rgb, tint};
 use crate::widgets::{self, Kind};
 
-/// The badge that says whether an app is made by ArtCraft or by someone else.
+/// The byline that says who makes an app: "by ArtCraft" or "by <publisher>". Official apps take
+/// the accent colour, community apps the muted one.
 fn kind_badge(ui: &mut Ui, app: &artcraft_launcher_core::CraftApp, t: &Tokens) {
-    match app.kind {
-        AppKind::Official => widgets::badge(ui, &tl!("Official"), t.accent_ink),
-        AppKind::Community => widgets::badge(ui, &tl!("Community"), t.muted),
+    let text = fmt(tl!("by {name}"), &[("name", app.publisher)]);
+    let color = match app.kind {
+        AppKind::Official => t.accent_ink,
+        AppKind::Community => t.muted,
     };
+    widgets::badge(ui, &text, color);
 }
 
 /// Translate a relative timestamp ("just now", "5 min ago", …) into the current language.
@@ -664,7 +667,7 @@ impl LauncherUi {
     ) {
         for (key, label) in [
             (Some(SortKey::Name), tl!("App")),
-            (None, tr_ctx(current(), "column", "Type")),
+            (None, tr_ctx(current(), "column", "By")),
             (Some(SortKey::Status), tl!("Status")),
             (None, tr_ctx(current(), "column", "Version")),
             (Some(SortKey::Released), tr_ctx(current(), "column", "Released")),

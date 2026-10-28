@@ -21,8 +21,7 @@
 
 	Launcher	Launcher
 	Craft App Suite	Craft App Suite
-	Official	Offiziell
-	Community	Community
+	by {name}	von {name}
 	Open Source Tools for Creatives, Makers, and Builders	Open-Source-Werkzeuge für Kreative, Maker und Entwickler
 	Settings	Einstellungen
 	Check for updates	Nach Updates suchen
@@ -384,4 +383,4 @@ filter	Installed	Installiert
 	Show {n} more changes	{n} weitere Änderungen anzeigen
 	Last updated: {date}	Zuletzt aktualisiert: {date}
 column	Version	Version
-column	Type	Typ
+column	By	Von

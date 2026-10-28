@@ -485,10 +485,7 @@ pub const DETAILS: [AppDetails; 14] = [
                 "Sketches and constraints",
                 "Lines, arcs, splines and text, solved by SolidCraft's own constraint solver, with parameter-driven dimensions.",
             ),
-            feature(
-                "Features",
-                "Extrude, revolve, sweep, loft, fillet, chamfer, shell, holes, threads and patterns on a parametric timeline.",
-            ),
+            feature("Features", "Extrude, revolve, sweep, loft, fillet, chamfer, shell, holes, threads and patterns on a parametric timeline."),
             feature("Files", "STEP, IGES, 3MF, STL, OBJ and glTF in and out where supported, and .sc designs."),
             feature("Desktop, web and agents", "A desktop app, a browser app, a headless CLI and an MCP server, all running the same commands."),
         ],

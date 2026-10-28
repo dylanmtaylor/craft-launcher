@@ -35,6 +35,8 @@ pub struct CraftApp {
     /// Older display names its installers registered (PdfCraft's MSI said PrintCraft until 0.2.1).
     pub former_names: &'static [&'static str],
     pub kind: AppKind,
+    /// Who publishes it, as the card's byline shows it (`ArtCraft`, `Tangency Labs`).
+    pub publisher: &'static str,
     /// The bundle id when it isn't `ai.storyteller.<id>` (a community app brings its own).
     pub bundle: Option<&'static str>,
 }
@@ -91,6 +93,7 @@ const fn app(
         former_ids: &[],
         former_names: &[],
         kind: AppKind::Official,
+        publisher: "ArtCraft",
         bundle: None,
     }
 }
@@ -170,6 +173,7 @@ pub const SUITE: [CraftApp; 14] = [
     app("gridcraft", "GridCraft", "Spreadsheets and data", [[0x1f, 0x9d, 0x55], [0x12, 0x70, 0x3a], [0x4f, 0xd6, 0x8a]], "storytold/gridcraft"),
     CraftApp {
         kind: AppKind::Community,
+        publisher: "Tangency Labs",
         bundle: Some("io.tangencylabs.solidcraft"),
         ..app(
             "solidcraft",

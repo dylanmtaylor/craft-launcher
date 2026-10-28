@@ -21,8 +21,7 @@
 
 	Launcher	Launcher
 	Craft App Suite	Craft App Suite
-	Official	Hivatalos
-	Community	Közösség
+	by {name}	készítette: {name}
 	Open Source Tools for Creatives, Makers, and Builders	Nyílt forráskódú eszközök alkotóknak, barkácsolóknak és fejlesztőknek
 	Settings	Beállítások
 	Check for updates	Frissítések keresése
@@ -385,4 +384,4 @@ filter	Installed	Telepítve
 	Show {n} more changes	{n} további változás megjelenítése
 	Last updated: {date}	Utoljára frissítve: {date}
 column	Version	Verzió
-column	Type	Típus
+column	By	Készítő

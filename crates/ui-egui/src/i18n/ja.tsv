@@ -23,8 +23,7 @@
 
 	Launcher	Launcher
 	Craft App Suite	Craft App Suite
-	Official	公式
-	Community	コミュニティ
+	by {name}	{name} 提供
 	Open Source Tools for Creatives, Makers, and Builders	クリエイター、メイカー、ビルダーのためのオープンソースツール
 	Settings	設定
 	Check for updates	更新を確認
@@ -387,4 +386,4 @@ filter	Installed	インストール済み
 	Show {n} more changes	さらに{n}件の変更を表示
 	Last updated: {date}	最終更新: {date}
 column	Version	バージョン
-column	Type	種類
+column	By	提供元
