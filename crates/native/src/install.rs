@@ -119,7 +119,12 @@ pub fn install_at(
         }
         #[cfg(target_os = "linux")]
         PackageKind::Deb | PackageKind::Rpm | PackageKind::ArchPkg | PackageKind::Flatpak => {
-            linux::install_package(kind, &file, job.stop, &mut *job.phase).map(|_| None)
+            linux::install_package(kind, &file, job.stop, &mut *job.phase).map(|_| {
+                if kind == PackageKind::Flatpak {
+                    linux::retire_former_flatpak(app, existing);
+                }
+                None
+            })
         }
         #[cfg(target_os = "linux")]
         PackageKind::AppImage => {
@@ -310,6 +315,9 @@ pub(crate) fn choose_kinds_with(
     available: &[PackageKind],
     can_pacman: bool,
 ) -> Vec<PackageKind> {
+    // Formats the launcher can't verify for this app (SolidCraft's unsigned macOS build) never count.
+    let available: Vec<PackageKind> = available.iter().copied().filter(|k| app.installs(*k)).collect();
+    let available = available.as_slice();
     if let Some(inst) = existing {
         let kind = match inst.source {
             InstallSource::Launcher => record.map(|r| r.kind),
@@ -957,18 +965,20 @@ pub(crate) mod linux {
 
     pub fn remove_package(app: &CraftApp, installed: &Installed, stop: &Stop, phase: &mut dyn FnMut(JobPhase)) -> Result<(), String> {
         let mut remove = |command: &[&str], package: &str| as_root(&SYSTEM, command, OsStr::new(package), stop, phase, JobPhase::Removing);
+        let package = installed.package.as_deref().unwrap_or(app.id);
         match installed.source {
-            InstallSource::Deb if system_tool("apt-get").is_some() => remove(&["apt-get", "-o", APT_WAITS, "remove", "-y"], app.id),
-            InstallSource::Deb => remove(&["dpkg", "-r"], app.id),
+            // The package detected (photocraft, or ai.storyteller.photocraft).
+            InstallSource::Deb if system_tool("apt-get").is_some() => remove(&["apt-get", "-o", APT_WAITS, "remove", "-y"], package),
+            InstallSource::Deb => remove(&["dpkg", "-r"], package),
             InstallSource::Rpm => {
                 if system_tool("dnf").is_some() {
-                    remove(&["dnf", "remove", "-y"], app.id)
+                    remove(&["dnf", "remove", "-y"], package)
                 } else {
-                    remove(&["rpm", "-e"], app.id)
+                    remove(&["rpm", "-e"], package)
                 }
             }
             // The package detected (photocraft, photocraft-bin or photocraft-git).
-            InstallSource::Pacman => remove(&["pacman", "-R", "--noconfirm"], installed.package.as_deref().unwrap_or(app.id)),
+            InstallSource::Pacman => remove(&["pacman", "-R", "--noconfirm"], package),
             InstallSource::Flatpak => {
                 let id = installed.package.clone().unwrap_or_else(|| app.bundle_id());
                 let user = process::flatpak_command().args(["uninstall", "--user", "-y", "--noninteractive", &id]).status();
@@ -986,6 +996,28 @@ pub(crate) mod linux {
             }
             other => Err(format!("{} isn't a system package", other.label())),
         }
+    }
+
+    /// The older Flatpak id `app` was found under before an update, if it's one of its own
+    /// ([`CraftApp::former_bundles`]) and not the current id.
+    pub(crate) fn former_flatpak<'a>(app: &CraftApp, existing: Option<&'a Installed>) -> Option<&'a str> {
+        let old = existing.filter(|i| i.source == InstallSource::Flatpak)?.package.as_deref()?;
+        (old != app.bundle_id() && app.former_bundles.contains(&old)).then_some(old)
+    }
+
+    /// After a Flatpak update of an app that was installed under one of its older ids, removes
+    /// that old copy, which would otherwise come back once the new one is removed. Its data
+    /// folder (`~/.var/app/<old id>`) stays: the new app copies its settings from there on its
+    /// first launch.
+    pub fn retire_former_flatpak(app: &CraftApp, existing: Option<&Installed>) {
+        let Some(old) = former_flatpak(app, existing) else { return };
+        for scope in ["--user", "--system"] {
+            if process::flatpak_command().args(["uninstall", scope, "-y", "--noninteractive", old]).status().is_ok_and(|s| s.success()) {
+                log::info!("{}: removed the old Flatpak {old}; its data stays for the new app", app.name);
+                return;
+            }
+        }
+        log::warn!("{}: couldn't remove the old Flatpak {old}; `flatpak uninstall {old}` removes it", app.name);
     }
 
     pub fn install_appimage(
@@ -2551,6 +2583,29 @@ mod tests {
         assert!(managed_elsewhere_with(app, &installed, false, |_| None).is_some());
         assert_eq!(choose_kinds_with(app, Some(&installed), None, &[], &[], false), Vec::<PackageKind>::new());
         assert_eq!(choose_kinds_with(app, Some(&installed), None, &[PackageKind::ArchPkg], &[PackageKind::ArchPkg], true), Vec::<PackageKind>::new());
+    }
+
+    #[test]
+    fn solidcraft_is_never_installed_from_its_unsigned_macos_build() {
+        let sc = artcraft_launcher_core::CraftApp::by_id("solidcraft").unwrap();
+        assert_eq!(choose_kinds_with(sc, None, None, &[], &[PackageKind::Dmg], false), Vec::<PackageKind>::new());
+        let photo = artcraft_launcher_core::CraftApp::by_id("photocraft").unwrap();
+        assert_eq!(choose_kinds_with(photo, None, None, &[], &[PackageKind::Dmg], false), [PackageKind::Dmg]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn only_an_apps_own_older_flatpak_id_is_retired() {
+        use super::linux::former_flatpak;
+        let flatpak = |id: &str| Installed { version: None, source: InstallSource::Flatpak, location: id.into(), package: Some(id.into()) };
+        let sc = artcraft_launcher_core::CraftApp::by_id("solidcraft").unwrap();
+        let old = flatpak("ai.storyteller.solvecraft");
+        assert_eq!(former_flatpak(sc, Some(&old)), Some("ai.storyteller.solvecraft"));
+        assert_eq!(former_flatpak(sc, Some(&flatpak("io.tangencylabs.solidcraft"))), None);
+        assert_eq!(former_flatpak(sc, Some(&flatpak("ai.storyteller.cadcraft"))), None);
+        assert_eq!(former_flatpak(sc, None), None);
+        let deb = Installed { source: InstallSource::Deb, ..old.clone() };
+        assert_eq!(former_flatpak(sc, Some(&deb)), None);
     }
 
     #[test]

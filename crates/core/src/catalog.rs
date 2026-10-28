@@ -43,6 +43,12 @@ pub struct CraftApp {
     pub bundle: Option<&'static str>,
     /// Older bundle ids its Flatpak shipped under (SolidCraft was `ai.storyteller.solidcraft`).
     pub former_bundles: &'static [&'static str],
+    /// Its website, when it isn't a page on getartcraft.com (a community app has its own).
+    pub site: Option<&'static str>,
+    /// Whether the launcher installs its macOS build. `false` while those builds carry no
+    /// Developer ID signature the launcher can check: it then opens a copy that's there and
+    /// links to the releases, but installs nothing.
+    pub installs_on_mac: bool,
 }
 
 impl CraftApp {
@@ -59,9 +65,14 @@ impl CraftApp {
         format!("https://github.com/{}", self.repo)
     }
 
-    /// The app's page on getartcraft.com.
+    /// The app's website: its page on getartcraft.com, or a community app's own site.
     pub fn website(&self) -> String {
-        format!("https://getartcraft.com/apps/{}", self.id)
+        self.site.map_or_else(|| format!("https://getartcraft.com/apps/{}", self.id), str::to_string)
+    }
+
+    /// Whether the launcher installs this app from a `kind` package.
+    pub fn installs(&self, kind: crate::PackageKind) -> bool {
+        kind != crate::PackageKind::Dmg || self.installs_on_mac
     }
 
     /// Bundle ids this app may be installed under, current first.
@@ -106,6 +117,8 @@ const fn app(
         msi_publisher: None,
         bundle: None,
         former_bundles: &[],
+        site: None,
+        installs_on_mac: true,
     }
 }
 
@@ -188,6 +201,9 @@ pub const SUITE: [CraftApp; 14] = [
         msi_publisher: Some("SolidCraft contributors"),
         bundle: Some("io.tangencylabs.solidcraft"),
         former_bundles: &["ai.storyteller.solidcraft", "ai.storyteller.solvecraft"],
+        site: Some("https://solidcraft.io"),
+        // Its macOS builds aren't Developer ID signed yet (its README says to right-click Open).
+        installs_on_mac: false,
         ..app(
             "solidcraft",
             "SolidCraft",
@@ -295,6 +311,9 @@ mod tests {
         assert_eq!(sc.bundle_ids().collect::<Vec<_>>(), ["io.tangencylabs.solidcraft", "ai.storyteller.solidcraft", "ai.storyteller.solvecraft"]);
         assert_eq!(CraftApp::by_id("gridcraft").unwrap().bundle_id(), "ai.storyteller.gridcraft");
         assert_eq!(CraftApp::by_id("gridcraft").unwrap().kind, AppKind::Official);
+        assert_eq!(sc.website(), "https://solidcraft.io");
+        assert!(!sc.installs(crate::PackageKind::Dmg) && sc.installs(crate::PackageKind::Msi) && sc.installs(crate::PackageKind::Flatpak));
+        assert!(CraftApp::by_id("gridcraft").unwrap().installs(crate::PackageKind::Dmg));
     }
 
     #[test]

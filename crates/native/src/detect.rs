@@ -162,7 +162,9 @@ pub mod macos {
     pub fn read_bundle(app: &CraftApp, path: &Path) -> Option<Installed> {
         let plist = plist::Value::from_file(path.join("Contents/Info.plist")).ok()?;
         let dict = plist.as_dictionary()?;
-        if dict.get("CFBundleIdentifier")?.as_string()? != app.bundle_id() {
+        // Its current bundle id or an older one (SolidCraft was ai.storyteller.solidcraft).
+        let id = dict.get("CFBundleIdentifier")?.as_string()?;
+        if !app.bundle_ids().any(|b| b == id) {
             return None;
         }
         // `<App>Version` carries the full version including a pre-release suffix;
