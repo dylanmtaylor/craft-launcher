@@ -172,7 +172,7 @@ designcraft	Page layout and publishing	Вёрстка и издательско�
 wordcraft	Writing and document design	Тексты и оформление документов
 deckcraft	Presentations and slide shows	Презентации и слайд-шоу
 gridcraft	Spreadsheets and data	Электронные таблицы и данные
-solidcraft	Parametric 3D CAD by Tangency Labs	Параметрическое 3D-CAD от Tangency Labs
+solidcraft	Parametric 3D CAD	Параметрический 3D CAD
 cadcraft	Computer-aided design and drafting	Автоматизированное проектирование и черчение
 soundcraft	Recording, editing and mixing audio	Запись, редактирование и сведение звука
 figcraft	Interface design and prototyping	Дизайн интерфейсов и прототипирование
@@ -379,4 +379,4 @@ filter	Installed	Установлены
 	Show {n} more changes	Показать ещё изменений: {n}
 	Last updated: {date}	Последнее обновление: {date}
 column	Version	Версия
-column	By	От
+column	Author	Автор

@@ -37,6 +37,8 @@ pub struct CraftApp {
     pub kind: AppKind,
     /// Who publishes it, as the card's byline shows it (`ArtCraft`, `Tangency Labs`).
     pub publisher: &'static str,
+    /// The publisher its Windows installer names, when it isn't ArtCraft's (`Learning Machines LLC`).
+    pub msi_publisher: Option<&'static str>,
     /// The bundle id when it isn't `ai.storyteller.<id>` (a community app brings its own).
     pub bundle: Option<&'static str>,
 }
@@ -94,6 +96,7 @@ const fn app(
         former_names: &[],
         kind: AppKind::Official,
         publisher: "ArtCraft",
+        msi_publisher: None,
         bundle: None,
     }
 }
@@ -174,11 +177,12 @@ pub const SUITE: [CraftApp; 14] = [
     CraftApp {
         kind: AppKind::Community,
         publisher: "Tangency Labs",
+        msi_publisher: Some("SolidCraft contributors"),
         bundle: Some("io.tangencylabs.solidcraft"),
         ..app(
             "solidcraft",
             "SolidCraft",
-            "Parametric 3D CAD by Tangency Labs",
+            "Parametric 3D CAD",
             [[0x46, 0xa1, 0xfb], [0x16, 0x53, 0xae], [0x8c, 0xc4, 0xff]],
             "tangency-labs/solidcraft",
         )

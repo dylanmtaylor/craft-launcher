@@ -584,10 +584,10 @@ impl LauncherUi {
                 .vscroll(false)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
                 .column(Column::remainder().at_least(220.0).clip(true))
-                .column(Column::exact(112.0))
                 .column(Column::exact(176.0))
                 .column(Column::exact(150.0))
                 .column(Column::exact(104.0))
+                .column(Column::exact(120.0))
                 .column(Column::exact(206.0))
                 .header(42.0, |header| self.table_header(header, &mut sort_clicked, &t, span, clip))
                 .body(|body| self.table_rows(body, ids, &t, (title_h, tagline_h), now, (span, clip)));
@@ -667,10 +667,10 @@ impl LauncherUi {
     ) {
         for (key, label) in [
             (Some(SortKey::Name), tl!("App")),
-            (None, tr_ctx(current(), "column", "By")),
             (Some(SortKey::Status), tl!("Status")),
             (None, tr_ctx(current(), "column", "Version")),
             (Some(SortKey::Released), tr_ctx(current(), "column", "Released")),
+            (None, tr_ctx(current(), "column", "Author")),
             (None, ""),
         ] {
             header.col(|ui| {
@@ -685,7 +685,7 @@ impl LauncherUi {
     }
 
     /// The table's one row per app: the app (click to open its page), its status, the version,
-    /// when it was released, and its actions.
+    /// when it was released, who makes it, and its actions.
     fn table_rows(
         &mut self,
         mut body: egui_extras::TableBody<'_>,
@@ -701,12 +701,12 @@ impl LauncherUi {
             let status = entry.status(self.platform, self.caps.manage_apps);
             body.row(62.0, |mut row| {
                 row.col(|ui| self.table_app_cell(ui, &entry, id, i < last, t, (fonts.0, fonts.1, rule.0, rule.1)));
-                row.col(|ui| {
-                    kind_badge(ui, entry.app, t);
-                });
                 row.col(|ui| self.table_status_cell(ui, &entry, &status, t));
                 row.col(|ui| self.table_version_cell(ui, &entry, &status, t));
                 row.col(|ui| self.table_released_cell(ui, &entry, now, t));
+                row.col(|ui| {
+                    ui.label(RichText::new(entry.app.publisher).color(t.muted));
+                });
                 row.col(|ui| self.actions(ui, &entry, &status, 204.0));
             });
         }

@@ -88,7 +88,8 @@ pub(crate) fn appimage_version(name: &str, stems: &[&str]) -> Option<Option<Stri
     (parsed.kind == artcraft_launcher_core::PackageKind::AppImage && parsed.token.starts_with("linux-")).then_some(Some(parsed.version))
 }
 
-/// Who our Windows Installer packages name as their publisher.
+/// Who our Windows Installer packages name as their publisher. A community app's names its own
+/// ([`CraftApp::msi_publisher`]).
 #[cfg_attr(not(windows), allow(dead_code))]
 const PUBLISHER: &str = "Learning Machines LLC";
 
@@ -96,7 +97,7 @@ const PUBLISHER: &str = "Learning Machines LLC";
 /// installers have registered.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn is_installer_entry(app: &CraftApp, display_name: &str, publisher: &str) -> bool {
-    publisher == PUBLISHER && app.names().any(|n| n == display_name)
+    publisher == app.msi_publisher.unwrap_or(PUBLISHER) && app.names().any(|n| n == display_name)
 }
 
 /// Where a Windows install of `app` may keep its exe, in the order to try: the entry's
@@ -322,7 +323,9 @@ pub mod linux {
         if let Some(list) = crate::process::capture_flatpak(&["list", "--app", &arch, "--columns=application,version"], t) {
             let mut flatpaks = packages::parse_flatpak_list(&list);
             // Bundles built from a release tarball often list no version: ask Flatpak directly.
-            for (id, version) in flatpaks.iter_mut().filter(|(id, v)| v.is_empty() && id.starts_with("ai.storyteller.")) {
+            for (id, version) in
+                flatpaks.iter_mut().filter(|(id, v)| v.is_empty() && artcraft_launcher_core::SUITE.iter().any(|a| a.bundle_id() == *id))
+            {
                 if let Some(v) = crate::process::capture_flatpak(&["info", &arch, id], t).as_deref().and_then(packages::parse_flatpak_info) {
                     *version = v;
                 }
@@ -470,6 +473,7 @@ mod linux_tests {
         };
         assert!(ours("photocraft"));
         assert!(ours("ai.storyteller.photocraft"));
+        assert!(ours("io.tangencylabs.solidcraft"));
         assert!(!ours("unrelated-package"));
     }
 
@@ -745,6 +749,14 @@ mod tests {
     }
 
     #[test]
+    fn solidcraft_matches_its_own_installer_publisher_only() {
+        let sc = CraftApp::by_id("solidcraft").unwrap();
+        assert!(is_installer_entry(sc, "SolidCraft", "SolidCraft contributors"));
+        assert!(!is_installer_entry(sc, "SolidCraft", LEARNING_MACHINES));
+        assert!(!is_installer_entry(CraftApp::by_id("cadcraft").unwrap(), "CADCraft", "SolidCraft contributors"));
+    }
+
+    #[test]
     fn pdfcraft_exe_is_sought_under_every_name_it_has_shipped_as() {
         let pdf = CraftApp::by_id("pdfcraft").unwrap();
         let location = PathBuf::from(r"D:\Apps\PrintCraft");
@@ -764,9 +776,10 @@ mod tests {
         let roots = roots();
         let location = PathBuf::from(r"D:\Apps\Somewhere");
         for a in SUITE.iter().filter(|a| a.former_ids.is_empty() && a.former_names.is_empty()) {
-            assert!(is_installer_entry(a, a.name, LEARNING_MACHINES), "{}", a.name);
+            let publisher = a.msi_publisher.unwrap_or(LEARNING_MACHINES);
+            assert!(is_installer_entry(a, a.name, publisher), "{}", a.name);
             assert!(!is_installer_entry(a, a.name, "Some Other Publisher"), "{}", a.name);
-            assert!(!is_installer_entry(a, &a.name.to_lowercase(), LEARNING_MACHINES), "{}", a.name);
+            assert!(!is_installer_entry(a, &a.name.to_lowercase(), publisher), "{}", a.name);
             let exe = format!("{}.exe", a.id);
             let in_program_files: Vec<PathBuf> = roots.iter().map(|r| r.join(a.name).join(&exe)).collect();
             assert_eq!(exe_candidates(a, None, &roots), in_program_files);
