@@ -20,6 +20,8 @@
 
 	Launcher	Launcher
 	Craft App Suite	Craft App Suite
+	Official	Официальное
+	Community	Сообщество
 	Open Source Tools for Creatives, Makers, and Builders	Инструменты с открытым кодом для творцов, мастеров и создателей
 	Settings	Настройки
 	Check for updates	Проверить обновления
@@ -171,6 +173,7 @@ designcraft	Page layout and publishing	Вёрстка и издательско�
 wordcraft	Writing and document design	Тексты и оформление документов
 deckcraft	Presentations and slide shows	Презентации и слайд-шоу
 gridcraft	Spreadsheets and data	Электронные таблицы и данные
+solidcraft	Parametric 3D CAD by Tangency Labs	Параметрическое 3D-CAD от Tangency Labs
 cadcraft	Computer-aided design and drafting	Автоматизированное проектирование и черчение
 soundcraft	Recording, editing and mixing audio	Запись, редактирование и сведение звука
 figcraft	Interface design and prototyping	Дизайн интерфейсов и прототипирование
@@ -377,3 +380,4 @@ filter	Installed	Установлены
 	Show {n} more changes	Показать ещё изменений: {n}
 	Last updated: {date}	Последнее обновление: {date}
 column	Version	Версия
+column	Type	Тип

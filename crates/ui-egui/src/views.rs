@@ -1,6 +1,7 @@
 //! The header, toolbar, footer, the grid of cards and the table, laid out like the apps page on
 //! getartcraft.com: hairline cells, mono labels and square controls.
 
+use artcraft_launcher_core::catalog::AppKind;
 use artcraft_launcher_core::details::AppDetails;
 use artcraft_launcher_core::platform::pick_asset;
 use artcraft_launcher_core::protocol::{Command, JobPhase};
@@ -14,6 +15,14 @@ use crate::model::{self, AppEntry};
 use crate::settings::{Filter, SortKey, ViewMode};
 use crate::theme::{self, Tokens, rgb, tint};
 use crate::widgets::{self, Kind};
+
+/// The badge that says whether an app is made by ArtCraft or by someone else.
+fn kind_badge(ui: &mut Ui, app: &artcraft_launcher_core::CraftApp, t: &Tokens) {
+    match app.kind {
+        AppKind::Official => widgets::badge(ui, &tl!("Official"), t.accent_ink),
+        AppKind::Community => widgets::badge(ui, &tl!("Community"), t.muted),
+    };
+}
 
 /// Translate a relative timestamp ("just now", "5 min ago", …) into the current language.
 fn ago_text(secs: i64, now: i64) -> String {
@@ -514,6 +523,7 @@ impl LauncherUi {
                 ui.spacing_mut().interact_size.y = 0.0;
                 ui.horizontal(|ui| {
                     widgets::wordmark_in(ui, app, 22.0, in_colour);
+                    kind_badge(ui, app, &t);
                 });
                 ui.add(egui::Label::new(RichText::new(tr_ctx(current(), app.id, app.tagline)).font(tagline.clone()).color(t.muted)).truncate());
             });
@@ -571,6 +581,7 @@ impl LauncherUi {
                 .vscroll(false)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
                 .column(Column::remainder().at_least(220.0).clip(true))
+                .column(Column::exact(112.0))
                 .column(Column::exact(176.0))
                 .column(Column::exact(150.0))
                 .column(Column::exact(104.0))
@@ -653,6 +664,7 @@ impl LauncherUi {
     ) {
         for (key, label) in [
             (Some(SortKey::Name), tl!("App")),
+            (None, tr_ctx(current(), "column", "Type")),
             (Some(SortKey::Status), tl!("Status")),
             (None, tr_ctx(current(), "column", "Version")),
             (Some(SortKey::Released), tr_ctx(current(), "column", "Released")),
@@ -686,6 +698,9 @@ impl LauncherUi {
             let status = entry.status(self.platform, self.caps.manage_apps);
             body.row(62.0, |mut row| {
                 row.col(|ui| self.table_app_cell(ui, &entry, id, i < last, t, (fonts.0, fonts.1, rule.0, rule.1)));
+                row.col(|ui| {
+                    kind_badge(ui, entry.app, t);
+                });
                 row.col(|ui| self.table_status_cell(ui, &entry, &status, t));
                 row.col(|ui| self.table_version_cell(ui, &entry, &status, t));
                 row.col(|ui| self.table_released_cell(ui, &entry, now, t));
