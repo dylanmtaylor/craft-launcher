@@ -544,7 +544,8 @@ pub fn launch(app: &CraftApp, installed: &Installed, paths: &Paths) -> Result<()
     match installed.source {
         InstallSource::Flatpak => {
             let mut cmd = process::flatpak_command();
-            cmd.args(["run", &app.bundle_id()]);
+            // The id detection found it under, which may be one of the app's older ones.
+            cmd.args(["run", &installed.package.clone().unwrap_or_else(|| app.bundle_id())]);
             process::spawn_detached(cmd)
         }
         InstallSource::MacApp => process::open(path.as_os_str()),
@@ -969,7 +970,7 @@ pub(crate) mod linux {
             // The package detected (photocraft, photocraft-bin or photocraft-git).
             InstallSource::Pacman => remove(&["pacman", "-R", "--noconfirm"], installed.package.as_deref().unwrap_or(app.id)),
             InstallSource::Flatpak => {
-                let id = app.bundle_id();
+                let id = installed.package.clone().unwrap_or_else(|| app.bundle_id());
                 let user = process::flatpak_command().args(["uninstall", "--user", "-y", "--noninteractive", &id]).status();
                 if user.is_ok_and(|s| s.success()) {
                     return Ok(());

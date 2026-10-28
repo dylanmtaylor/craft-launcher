@@ -324,7 +324,7 @@ pub mod linux {
             let mut flatpaks = packages::parse_flatpak_list(&list);
             // Bundles built from a release tarball often list no version: ask Flatpak directly.
             for (id, version) in
-                flatpaks.iter_mut().filter(|(id, v)| v.is_empty() && artcraft_launcher_core::SUITE.iter().any(|a| a.bundle_id() == *id))
+                flatpaks.iter_mut().filter(|(id, v)| v.is_empty() && artcraft_launcher_core::SUITE.iter().any(|a| a.bundle_ids().any(|b| b == *id)))
             {
                 if let Some(v) = crate::process::capture_flatpak(&["info", &arch, id], t).as_deref().and_then(packages::parse_flatpak_info) {
                     *version = v;
@@ -409,7 +409,8 @@ pub mod linux {
         }
         let order = [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak];
         if let Some(p) = packages::find(app, &snapshot.packages, &order) {
-            let location = if p.manager == InstallSource::Flatpak { app.bundle_id() } else { binary_on_path(app.id) };
+            // A Flatpak runs under the id it was found under, which may be an older one.
+            let location = if p.manager == InstallSource::Flatpak { p.name.clone() } else { binary_on_path(app.id) };
             return Some(Installed { version: packages::version_of(p), source: p.manager, location, package: Some(p.name.clone()) });
         }
         detect_system_install(app)
@@ -474,6 +475,8 @@ mod linux_tests {
         assert!(ours("photocraft"));
         assert!(ours("ai.storyteller.photocraft"));
         assert!(ours("io.tangencylabs.solidcraft"));
+        assert!(ours("ai.storyteller.solidcraft"));
+        assert!(ours("ai.storyteller.solvecraft"));
         assert!(!ours("unrelated-package"));
     }
 

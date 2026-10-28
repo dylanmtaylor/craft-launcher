@@ -41,6 +41,8 @@ pub struct CraftApp {
     pub msi_publisher: Option<&'static str>,
     /// The bundle id when it isn't `ai.storyteller.<id>` (a community app brings its own).
     pub bundle: Option<&'static str>,
+    /// Older bundle ids its Flatpak shipped under (SolidCraft was `ai.storyteller.solidcraft`).
+    pub former_bundles: &'static [&'static str],
 }
 
 impl CraftApp {
@@ -60,6 +62,11 @@ impl CraftApp {
     /// The app's page on getartcraft.com.
     pub fn website(&self) -> String {
         format!("https://getartcraft.com/apps/{}", self.id)
+    }
+
+    /// Bundle ids this app may be installed under, current first.
+    pub fn bundle_ids(&self) -> impl Iterator<Item = String> + '_ {
+        std::iter::once(self.bundle_id()).chain(self.former_bundles.iter().map(|b| b.to_string()))
     }
 
     /// Asset stems this app's releases may use, current first.
@@ -98,6 +105,7 @@ const fn app(
         publisher: "ArtCraft",
         msi_publisher: None,
         bundle: None,
+        former_bundles: &[],
     }
 }
 
@@ -179,6 +187,7 @@ pub const SUITE: [CraftApp; 14] = [
         publisher: "Tangency Labs",
         msi_publisher: Some("SolidCraft contributors"),
         bundle: Some("io.tangencylabs.solidcraft"),
+        former_bundles: &["ai.storyteller.solidcraft", "ai.storyteller.solvecraft"],
         ..app(
             "solidcraft",
             "SolidCraft",
@@ -283,6 +292,7 @@ mod tests {
         assert_eq!(sc.kind, AppKind::Community);
         assert_eq!(sc.repo, "tangency-labs/solidcraft");
         assert_eq!(sc.bundle_id(), "io.tangencylabs.solidcraft");
+        assert_eq!(sc.bundle_ids().collect::<Vec<_>>(), ["io.tangencylabs.solidcraft", "ai.storyteller.solidcraft", "ai.storyteller.solvecraft"]);
         assert_eq!(CraftApp::by_id("gridcraft").unwrap().bundle_id(), "ai.storyteller.gridcraft");
         assert_eq!(CraftApp::by_id("gridcraft").unwrap().kind, AppKind::Official);
     }
