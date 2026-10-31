@@ -136,10 +136,6 @@ pub fn install_at(
         return Err(format!("Going back to an older version of {} isn't available for this kind of install yet.", app.name));
     }
     log::info!("{}: starting {} to {} ({})", app.name, if existing.is_some() { "update" } else { "install" }, release.version_label(), kind.label());
-    // An update of an installed MSI may be an all-users one. Say so before the (slow) scope lookup, so
-    // the other updates of this "Update all" wait for it and share one permission prompt.
-    #[cfg(windows)]
-    let mut joined = (kind == PackageKind::Msi && existing.is_some_and(|inst| inst.source == InstallSource::Msi)).then(msi_batch::Joined::join);
     #[cfg(windows)]
     let msi_scope = if kind == PackageKind::Msi {
         let updated = crate::msi_context::update_scope(
@@ -153,11 +149,6 @@ pub fn install_at(
     } else {
         None
     };
-    #[cfg(windows)]
-    if msi_scope != Some(MsiScope::PerMachine) || job.downgrade.is_some() {
-        // A downgrade runs its own remove, install and put-back steps, outside any batch.
-        joined = None;
-    }
     // The package to put back comes first: without it, nothing is removed.
     #[cfg_attr(not(windows), allow(unused_variables))]
     let rollback = match job.downgrade {
@@ -167,7 +158,6 @@ pub fn install_at(
         }
         Some(Downgrade::KeepOldCopy) | None => None,
     };
-    // The checksum is kept for the Windows all-users route, which checks the held package again.
     #[cfg_attr(not(windows), allow(unused_variables))]
     let (file, sha256) = download(release, asset, job)?;
     log::info!("{}: download ready ({}), running installer...", app.name, file.display());
@@ -191,8 +181,8 @@ pub fn install_at(
             // An update lands in the same Windows Installer context as the copy being replaced:
             // per-machine needs elevation, per-user must not duplicate itself per-machine. A
             // fresh install passes no context and takes the package's own default.
-            match (&joined, &rollback) {
-                (_, Some((previous, previous_sha256, previous_version))) => windows::downgrade_msi(
+            match &rollback {
+                Some((previous, previous_sha256, previous_version)) => windows::downgrade_msi(
                     app,
                     windows::Package { file: &file, sha256: &sha256, version: &version },
                     windows::Package { file: previous, sha256: previous_sha256, version: previous_version },
@@ -201,9 +191,7 @@ pub fn install_at(
                     job.stop,
                     &mut *job.phase,
                 ),
-                // All-users updates that are ready together share one permission prompt.
-                (Some(joined), None) => windows::run_msi_all_users(&file, &sha256, destination.as_deref(), joined, job.stop, &mut *job.phase),
-                (None, None) => windows::run_msi(&file, destination.as_deref(), msi_scope, job.stop, &mut *job.phase),
+                None => windows::run_msi(&file, destination.as_deref(), msi_scope, job.stop, &mut *job.phase),
             }
             .map(|_| None)
         }
@@ -976,16 +964,14 @@ fn root_outcome(code: Option<i32>) -> Result<(), String> {
     }
 }
 
-/// How the error of an installer call shared by several apps ends (see `linux::shared_outcome` and
-/// `msi_batch::outcome`). "In one go" covers a Linux package call, a Windows batch under one
-/// prompt, and its fallback where each package ran by itself but the run still has one result.
-const SHARED_CALL: &str = "apps in one go. Try them one at a time.";
+/// How the error of an installer call shared by several apps ends (see `linux::shared_outcome`).
+const SHARED_CALL: &str = "apps together. Try them one at a time.";
 
 /// Whether an install failed in one installer call shared with other apps (Linux packages
-/// installed together, or Windows all-users updates under one permission prompt). Such a call can
-/// fail after it has installed some of its apps; any other failure is the app's own.
+/// installed together). Such a call can fail after it has installed some of its apps; any other
+/// failure is the app's own.
 pub fn failed_in_shared_call(error: &str) -> bool {
-    cfg!(any(target_os = "linux", windows)) && error.ends_with(SHARED_CALL)
+    cfg!(target_os = "linux") && error.ends_with(SHARED_CALL)
 }
 
 /// The system's installer runs one job at a time; the others wait their turn here.
@@ -1939,14 +1925,13 @@ fn explain(code: Option<i32>) -> Result<(), String> {
     }
 }
 
-/// One permission prompt for several all-users updates.
-#[cfg(any(windows, test))]
-mod msi_batch;
-
 /// Going back to an older version of a Windows Installer app.
 #[cfg(any(windows, test))]
 mod msi_downgrade;
 
+/// Helpers for Windows Installer PowerShell scripts running under elevation.
+#[cfg(any(windows, test))]
+mod msi_batch;
 /// Builds the Windows Installer command separately so its package argument can be checked
 /// without starting an installer.
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -2019,53 +2004,6 @@ pub mod windows {
             Some(1602) | None => e,
             _ => format!("{e}. Its log is at {}", msi_log(msi).display()),
         })
-    }
-
-    /// Updates an app installed for all users. Jobs that are ready together go into one call, so Windows
-    /// asks for permission once for all of them; one that is alone runs as [`run_msi`] does.
-    /// `sha256` is the checksum the download was checked against: the package is held unchangeable
-    /// and checked again before it waits, and stays held until its call ends.
-    pub(super) fn run_msi_all_users(
-        msi: &Path,
-        sha256: &str,
-        destination: Option<&Path>,
-        joined: &msi_batch::Joined<'_>,
-        stop: &Stop,
-        phase: &mut dyn FnMut(JobPhase),
-    ) -> Result<(), String> {
-        let _held = msi_batch::hold(msi, sha256)?;
-        let scope = Some(MsiScope::PerMachine);
-        run_all_users_with(msi, destination, joined, stop, phase, &|| run_direct(msi, destination, scope), &|targets| {
-            msi_batch::run(&msiexec(), targets)
-        })
-    }
-
-    /// [`run_msi_all_users`] with the two ways of installing handed in: `alone` for a job that is the
-    /// only one in its call, `together` for the command lines of every job of a call of several.
-    pub(super) fn run_all_users_with(
-        msi: &Path,
-        destination: Option<&Path>,
-        joined: &msi_batch::Joined<'_>,
-        stop: &Stop,
-        phase: &mut dyn FnMut(JobPhase),
-        alone: &dyn Fn() -> Result<(), String>,
-        together: &dyn Fn(&[std::ffi::OsString]) -> Result<(), String>,
-    ) -> Result<(), String> {
-        use std::ffi::OsString;
-        let line = msi_batch::line(msi, destination, Some(MsiScope::PerMachine))?;
-        INSTALLER.batched_when(
-            vec![OsString::from(msi_batch::COMMAND)],
-            OsString::from(line),
-            &cancelled(stop),
-            &mut turn(phase, JobPhase::Installing),
-            &|_, targets| match targets {
-                [_one] => alone(),
-                _ => together(targets),
-            },
-            // Queued: this job's package is ready, so the others need not wait for it any more.
-            &|| joined.arrived(),
-            &|_| msi_batch::everyone_here(),
-        )
     }
 
     /// Runs the launcher's own new MSI for a self-update, with the same progress window and no
@@ -3038,7 +2976,7 @@ mod tests {
         assert_eq!(linux::shared_outcome(failed(), 1), failed());
         assert_eq!(
             linux::shared_outcome(failed(), 3),
-            Err("the system installer stopped with error 100 while handling 3 apps in one go. Try them one at a time.".into())
+            Err("the system installer stopped with error 100 while handling 3 apps together. Try them one at a time.".into())
         );
         // A dismissed password prompt stays a cancellation for every app, not an error.
         assert_eq!(linux::shared_outcome(Err("cancelled".into()), 3), Err("cancelled".into()));
@@ -3108,13 +3046,13 @@ mod tests {
         // No prompt could be shown (no polkit agent): a failure with its cause, not a cancel.
         let (ran, results) = two_debs_through_pkexec(127);
         assert_eq!(ran.len(), 1, "{ran:?}");
-        let error = "the system installer stopped with error 127 (usually refused permission or no polkit authentication agent) while handling 2 apps in one go. Try them one at a time.";
+        let error = "the system installer stopped with error 127 (usually refused permission or no polkit authentication agent) while handling 2 apps together. Try them one at a time.";
         assert_eq!(results, vec![Err(error.to_string()); 2]);
 
         // apt failed: both apps say so, and how to find the one at fault.
         let (ran, results) = two_debs_through_pkexec(100);
         assert_eq!(ran.len(), 1, "{ran:?}");
-        let error = "the system installer stopped with error 100 while handling 2 apps in one go. Try them one at a time.";
+        let error = "the system installer stopped with error 100 while handling 2 apps together. Try them one at a time.";
         assert_eq!(results, vec![Err(error.to_string()); 2]);
     }
 
